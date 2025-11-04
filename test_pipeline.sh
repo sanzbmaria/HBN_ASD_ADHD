@@ -192,23 +192,13 @@ if [ "${RUN_PARCELLATION}" = "yes" ]; then
     echo "Started: $(date)"
     echo ""
 
-    # Create a temporary directory with only test subjects
-    TEST_CIFTI_DIR="${DATA_ROOT}/test_HBN_CIFTI"
-    mkdir -p "${TEST_CIFTI_DIR}"
+    echo "Running parcellation on ${N_TEST} test subjects..."
+    echo "Note: Parcellation will process all files but we'll only use outputs for test subjects"
+    echo ""
 
-    echo "Creating test data directory with ${N_TEST} subjects..."
-    for subj in ${SUBJECTS_TO_TEST}; do
-        SRC="${DTSERIES_DIR}/${subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
-        DST="${TEST_CIFTI_DIR}/${subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
-        if [ ! -f "${DST}" ]; then
-            ln -s "${SRC}" "${DST}" 2>/dev/null || cp "${SRC}" "${DST}"
-        fi
-    done
-
-    echo "Running parcellation..."
     docker run --rm \
         -v "${DATA_ROOT}":/data \
-        -e BASEDIR=/data/test_HBN_CIFTI \
+        -e BASEDIR=/data/HBN_CIFTI \
         -e OUTDIR=/data/hyperalignment_input/glasser_ptseries \
         -e N_JOBS=${N_JOBS} \
         -w /app/hyperalignment_scripts \
