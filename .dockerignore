@@ -1,0 +1,39 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.eggs
+
+# Data directories (will be mounted as volumes)
+data/
+work/
+
+# Documentation
+*.md
+!hyperalignment_scripts/*.md
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
