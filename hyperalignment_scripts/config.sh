@@ -8,13 +8,14 @@ N_JOBS=24
 VERTICES_IN_BOUNDS=59412
 N_PARCELS=360
 
-# Directory paths (relative to hyperalignment_scripts/)
-DTSERIES_ROOT="../data/HBN_CIFTI/"
-PTSERIES_ROOT="../data/hyperalignment_input/glasser_ptseries/"
-BASE_OUTDIR="../data/connectomes"
+# Directory paths - these are INSIDE the Docker container
+# The host directory is mounted at /data in the container
+DTSERIES_ROOT="/data/HBN_CIFTI/"
+PTSERIES_ROOT="/data/hyperalignment_input/glasser_ptseries/"
+BASE_OUTDIR="/data/connectomes"
 TEMPORARY_OUTDIR="work"
 
-# Atlas configuration
+# Atlas configuration - inside container
 PARCELLATION_FILE="atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii"
 
 # File naming patterns
