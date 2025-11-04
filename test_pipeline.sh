@@ -25,8 +25,9 @@ TEST_PARCELS="${TEST_PARCELS:-1 2 3}"  # Space-separated list
 
 # Pipeline steps to run
 RUN_PARCELLATION="${RUN_PARCELLATION:-yes}"
+RUN_BUILD_AA_CONNECTOMES="${RUN_BUILD_AA_CONNECTOMES:-yes}"
 RUN_HYPERALIGNMENT="${RUN_HYPERALIGNMENT:-yes}"
-RUN_CONNECTOMES="${RUN_CONNECTOMES:-yes}"
+RUN_CHA_CONNECTOMES="${RUN_CHA_CONNECTOMES:-yes}"
 
 # Mode for hyperalignment
 MODE="${MODE:-full}"
@@ -150,9 +151,10 @@ echo "Test subjects (${N_TEST}): ${SUBJECTS_TO_TEST}"
 echo "Test parcels: ${TEST_PARCELS}"
 echo ""
 echo "Pipeline steps:"
-echo "  Parcellation: ${RUN_PARCELLATION}"
-echo "  Hyperalignment: ${RUN_HYPERALIGNMENT} (mode: ${MODE})"
-echo "  Connectomes: ${RUN_CONNECTOMES}"
+echo "  1. Parcellation: ${RUN_PARCELLATION}"
+echo "  2. Build AA Connectomes: ${RUN_BUILD_AA_CONNECTOMES}"
+echo "  3. Hyperalignment: ${RUN_HYPERALIGNMENT} (mode: ${MODE})"
+echo "  4. Build CHA Connectomes: ${RUN_CHA_CONNECTOMES}"
 echo ""
 echo "Resources:"
 echo "  N_JOBS: ${N_JOBS}"
@@ -221,12 +223,51 @@ else
 fi
 
 # ============================================================================
-# STEP 2: HYPERALIGNMENT (Test Parcels Only)
+# STEP 2: BUILD AA CONNECTOMES (Anatomical Connectomes)
+# ============================================================================
+
+if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
+    echo "================================================"
+    echo "STEP 2: BUILD AA CONNECTOMES"
+    echo "================================================"
+    echo "Started: $(date)"
+    echo ""
+    echo "Building anatomical connectomes from parcellated data..."
+    echo "This creates the connectomes needed for hyperalignment training."
+    echo ""
+
+    docker run --rm \
+        -v "${DATA_ROOT}":/data \
+        -e N_JOBS=${N_JOBS} \
+        -w /app/hyperalignment_scripts \
+        ${IMAGE_NAME} \
+        python3 build_aa_connectomes.py \
+        2>&1 | tee logs/test_build_aa_connectomes.log
+
+    AA_EXIT=${PIPESTATUS[0]}
+
+    if [ ${AA_EXIT} -ne 0 ]; then
+        echo ""
+        echo "ERROR: AA connectome building failed with exit code ${AA_EXIT}"
+        echo "Check logs/test_build_aa_connectomes.log for details"
+        exit ${AA_EXIT}
+    fi
+
+    echo ""
+    echo "✓ AA connectome building completed: $(date)"
+    echo ""
+else
+    echo "Skipping AA connectome building step"
+    echo ""
+fi
+
+# ============================================================================
+# STEP 3: HYPERALIGNMENT (Test Parcels Only)
 # ============================================================================
 
 if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
     echo "================================================"
-    echo "STEP 2: HYPERALIGNMENT (Test Parcels Only)"
+    echo "STEP 3: HYPERALIGNMENT (Test Parcels Only)"
     echo "================================================"
     echo "Started: $(date)"
     echo "Processing parcels: ${TEST_PARCELS}"
@@ -279,14 +320,17 @@ else
 fi
 
 # ============================================================================
-# STEP 3: BUILD CONNECTOMES (Test Data Only)
+# STEP 4: BUILD CHA CONNECTOMES (Hyperaligned Connectomes)
 # ============================================================================
 
-if [ "${RUN_CONNECTOMES}" = "yes" ]; then
+if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
     echo "================================================"
-    echo "STEP 3: BUILD CONNECTOMES (Test Subjects Only)"
+    echo "STEP 4: BUILD CHA CONNECTOMES (Test Subjects Only)"
     echo "================================================"
     echo "Started: $(date)"
+    echo ""
+    echo "Building CHA (Commonspace Hyperaligned Anatomical) connectomes..."
+    echo "This uses the hyperaligned timeseries to build final connectomes."
     echo ""
 
     docker run --rm \
@@ -294,22 +338,23 @@ if [ "${RUN_CONNECTOMES}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
-        python3 build_aa_connectomes.py \
-        2>&1 | tee logs/test_build_connectomes.log
+        python3 build_CHA_connectomes.py \
+        2>&1 | tee logs/test_build_cha_connectomes.log
 
-    CONNECTOMES_EXIT=${PIPESTATUS[0]}
+    CHA_EXIT=${PIPESTATUS[0]}
 
-    if [ ${CONNECTOMES_EXIT} -ne 0 ]; then
+    if [ ${CHA_EXIT} -ne 0 ]; then
         echo ""
-        echo "ERROR: Connectome building failed with exit code ${CONNECTOMES_EXIT}"
-        exit ${CONNECTOMES_EXIT}
+        echo "ERROR: CHA connectome building failed with exit code ${CHA_EXIT}"
+        echo "Check logs/test_build_cha_connectomes.log for details"
+        exit ${CHA_EXIT}
     fi
 
     echo ""
-    echo "✓ Connectome building completed: $(date)"
+    echo "✓ CHA connectome building completed: $(date)"
     echo ""
 else
-    echo "Skipping connectome building step"
+    echo "Skipping CHA connectome building step"
     echo ""
 fi
 
