@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl \
     git \
+    unzip \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -37,8 +38,8 @@ RUN /bin/bash -c "source activate mvpa_stable && \
     conda install numpy=1.23.5 -c conda-forge"
 
 # Make conda environment the default
-ENV PATH /opt/conda/envs/mvpa_stable/bin:$PATH
-ENV CONDA_DEFAULT_ENV mvpa_stable
+ENV PATH=/opt/conda/envs/mvpa_stable/bin:$PATH
+ENV CONDA_DEFAULT_ENV=mvpa_stable
 
 # Install Connectome Workbench
 RUN wget -q https://www.humanconnectome.org/storage/app/media/workbench/workbench-linux64-v1.5.0.zip && \
@@ -55,7 +56,7 @@ WORKDIR /app
 COPY hyperalignment_scripts/ /app/hyperalignment_scripts/
 
 # Set Python path to include hyperalignment_scripts
-ENV PYTHONPATH="/app/hyperalignment_scripts:${PYTHONPATH}"
+ENV PYTHONPATH=/app/hyperalignment_scripts
 
 # Create directories for data mounting
 RUN mkdir -p /data/HBN_CIFTI \
