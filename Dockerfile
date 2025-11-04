@@ -1,60 +1,44 @@
-FROM ubuntu:20.04
+FROM continuumio/miniconda3:latest
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# Install system dependencies
+# Install system dependencies (SWIG for PyMVPA2, build tools, etc.)
 RUN apt-get update && apt-get install -y \
+    build-essential \
+    swig \
     wget \
     curl \
     git \
-    build-essential \
-    software-properties-common \
     ca-certificates \
-    libhdf5-dev \
-    libxml2-dev \
-    libxslt1-dev \
-    libfreetype6-dev \
-    libpng-dev \
-    pkg-config \
-    gfortran \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python 2 and Python 3
-RUN apt-get update && apt-get install -y \
-    python2 \
-    python2-dev \
-    python3 \
-    python3-dev \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+# Create conda environment with exact versions that work
+# Based on user's working setup: Python 3.9 + PyMVPA2 2.6.5
+RUN conda create -n mvpa_stable \
+    python=3.9.23 \
+    nibabel=5.3.2 \
+    scikit-learn=1.6.1 \
+    pandas=2.3.3 \
+    numpy=1.23.5 \
+    scipy=1.10.1 \
+    matplotlib=3.9.4 \
+    setuptools=59.8.0 \
+    joblib \
+    tqdm \
+    -c conda-forge \
+    && conda clean -afy
 
-# Get pip for Python 2
-RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py && \
-    python2 get-pip.py && \
-    rm get-pip.py
+# Activate conda environment and install PyMVPA2
+RUN /bin/bash -c "source activate mvpa_stable && \
+    pip cache purge && \
+    pip install pymvpa2==2.6.5 && \
+    conda install numpy=1.23.5 -c conda-forge"
 
-# Install Python 3 packages
-RUN pip3 install --no-cache-dir \
-    numpy==1.21.6 \
-    scipy==1.7.3 \
-    nibabel==3.2.2 \
-    pandas==1.3.5 \
-    scikit-learn==1.0.2 \
-    joblib==1.1.0 \
-    tqdm==4.64.1
-
-# Install Python 2 packages (compatible versions)
-RUN pip2 install --no-cache-dir \
-    numpy==1.16.6 \
-    scipy==1.2.3 \
-    nibabel==2.5.2 \
-    pandas==0.24.2 \
-    h5py==2.10.0
-
-# Install PyMVPA2 for Python 2 (needed for hyperalignment)
-RUN pip2 install --no-cache-dir pymvpa2
+# Make conda environment the default
+ENV PATH /opt/conda/envs/mvpa_stable/bin:$PATH
+ENV CONDA_DEFAULT_ENV mvpa_stable
 
 # Install Connectome Workbench
 RUN wget -q https://www.humanconnectome.org/storage/app/media/workbench/workbench-linux64-v1.5.0.zip && \

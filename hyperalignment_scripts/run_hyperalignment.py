@@ -1,9 +1,9 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 
 # MY CODEEEE
 #%%
-## Hyperalignment is run with python2 and pymvpa
-# all subsequent analyses are run with python3
+## Hyperalignment is run with PyMVPA2 (now compatible with Python 3.9+)
+# All analyses use Python 3
 
 import os
 import sys

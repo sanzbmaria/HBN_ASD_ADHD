@@ -92,7 +92,7 @@ docker run --rm \
     -e POOL_NUM=${POOL_NUM} \
     -w /app/hyperalignment_scripts \
     ${IMAGE_NAME} \
-    python2 run_hyperalignment.py ${PARCEL} ${MODE}
+    python run_hyperalignment.py ${PARCEL} ${MODE}
 
 EXIT_CODE=$?
 

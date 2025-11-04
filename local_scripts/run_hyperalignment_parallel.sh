@@ -135,7 +135,7 @@ for parcel in $(seq ${START_PARCEL} ${END_PARCEL}); do
             -e POOL_NUM=${POOL_NUM} \
             -w /app/hyperalignment_scripts \
             ${IMAGE_NAME} \
-            python2 run_hyperalignment.py ${parcel} ${MODE} \
+            python run_hyperalignment.py ${parcel} ${MODE} \
             > logs/hyperalignment_parcel_${parcel}.log 2>&1
     ) &
 

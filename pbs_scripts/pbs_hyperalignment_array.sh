@@ -85,7 +85,7 @@ singularity exec \
     --bind ${PBS_O_WORKDIR}:/workspace \
     --pwd /app/hyperalignment_scripts \
     ${SINGULARITY_IMAGE} \
-    python2 run_hyperalignment.py ${PARCEL} ${MODE}
+    python run_hyperalignment.py ${PARCEL} ${MODE}
 
 EXIT_CODE=$?
 

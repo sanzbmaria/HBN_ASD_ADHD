@@ -256,7 +256,7 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
             -e POOL_NUM=${POOL_NUM} \
             -w /app/hyperalignment_scripts \
             ${IMAGE_NAME} \
-            python2 run_hyperalignment.py ${parcel} ${MODE} \
+            python run_hyperalignment.py ${parcel} ${MODE} \
             2>&1 | tee logs/test_hyperalignment_parcel_${parcel}.log
 
         EXIT_CODE=${PIPESTATUS[0]}
