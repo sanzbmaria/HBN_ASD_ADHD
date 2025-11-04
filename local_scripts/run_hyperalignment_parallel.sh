@@ -91,7 +91,9 @@ cleanup() {
     echo ""
     echo "Cleaning up background jobs..."
     for pid in "${pids[@]:-}"; do
-        kill $pid 2>/dev/null || true
+        if [ -n "$pid" ]; then
+            kill $pid 2>/dev/null || true
+        fi
     done
 }
 
@@ -149,12 +151,14 @@ done
 echo ""
 echo "Waiting for remaining jobs to complete..."
 for pid in "${pids[@]:-}"; do
-    wait $pid
-    exit_code=$?
-    if [ $exit_code -eq 0 ]; then
-        completed=$((completed + 1))
-    else
-        failed=$((failed + 1))
+    if [ -n "$pid" ]; then
+        wait $pid
+        exit_code=$?
+        if [ $exit_code -eq 0 ]; then
+            completed=$((completed + 1))
+        else
+            failed=$((failed + 1))
+        fi
     fi
 done
 
