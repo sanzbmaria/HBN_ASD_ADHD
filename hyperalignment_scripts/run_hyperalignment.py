@@ -62,20 +62,20 @@ with suppress_stderr():
     from mvpa2.datasets import Dataset
     from mvpa2.base import debug
 
-# Centralized configuration
-POOL_NUM = 24  # Up from 16
-N_JOBS = 24    # Keep as is
-VERTICES_IN_BOUNDS = 59412 # based on Glasser atlas
-N_PARCELS = 360 # based on Glasser atlas
-TEMPORARY_OUTDIR = "work"
-BASE_CONNECTOME_DIR = os.path.join('../data/', 'connectomes')
+# Import centralized configuration (Python 2 compatible)
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from read_config import (
+    POOL_NUM, N_JOBS, VERTICES_IN_BOUNDS, N_PARCELS,
+    DTSERIES_ROOT, PTSERIES_ROOT, BASE_OUTDIR, TEMPORARY_OUTDIR,
+    PARCELLATION_FILE, DTSERIES_FILENAME_TEMPLATE, DTSERIES_FILENAME_PATTERN,
+    pool_num, n_jobs  # lowercase aliases for backward compatibility
+)
 
-
-# File and directory patterns (centralized for easy editing)
-ATLAS_FILE = "atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii"
-DTSERIES_PATTERN = "../data/HBN_CIFTI/*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
-DTSERIES_ROOT = "../data/HBN_CIFTI"
-DTSERIES_FILENAME_TEMPLATE = "{}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
+# For backwards compatibility with existing code
+BASE_CONNECTOME_DIR = BASE_OUTDIR
+ATLAS_FILE = PARCELLATION_FILE
+DTSERIES_PATTERN = os.path.join(DTSERIES_ROOT, DTSERIES_FILENAME_PATTERN)
 
 # Suppress warnings during Dataset creation
 with warnings.catch_warnings():

@@ -5,35 +5,18 @@ import nibabel as nib
 from scipy.stats import zscore
 from scipy.spatial.distance import cdist
 
-
-# --- edit these two paths to match your machine (watch 'Code' vs 'code' casing) ---
-# In utils_test.py, replace the hardcoded paths with:
-
-# DTSERIES filename pattern configuration (edit here if you need to change naming)
-# Template used to build exact filenames and discovery glob patterns.
-# Example default: "{subj}_task-rest_run-1_gsr_Atlas_s5.dtseries.nii"
-DTSERIES_FILENAME_TEMPLATE = "{subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
-DTSERIES_FILENAME_PATTERN = "*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
-
-DTSERIES_ROOT = "../data/HBN_CIFTI/" 
-PTSERIES_ROOT = "../data/hyperalignment_input/glasser_ptseries/"
-BASE_OUTDIR = os.path.join("../data/", "connectomes")  # Separate output directory
-LOGDIR = os.path.join(BASE_OUTDIR, "logs")
-
-
-project_dir = "."
-scratch_dir = os.path.join(project_dir, "work")
-parcellation_dir = os.path.join(project_dir, "HCP_S1200_Atlas_Z4_pkXDZ")
-
-PARCELLATION_FILE = (
-    "atlas/"
-    "Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii"
+# Import centralized configuration
+from read_config import (
+    POOL_NUM, N_JOBS, VERTICES_IN_BOUNDS, N_PARCELS,
+    DTSERIES_ROOT, PTSERIES_ROOT, BASE_OUTDIR, TEMPORARY_OUTDIR,
+    PARCELLATION_FILE, DTSERIES_FILENAME_TEMPLATE, DTSERIES_FILENAME_PATTERN,
+    LOGDIR
 )
 
-POOL_NUM = 24  # Up from 16
-N_JOBS = 24    # Keep as is
-VERTICES_IN_BOUNDS = 59412 # based on Glasser atlas
-N_PARCELS = 360 # based on Glasser atlas
+# Legacy variables for backwards compatibility
+project_dir = "."
+scratch_dir = os.path.join(project_dir, TEMPORARY_OUTDIR)
+parcellation_dir = os.path.join(project_dir, "HCP_S1200_Atlas_Z4_pkXDZ")
 
 def subj_dtseries_to_npy(subj_id, z=False, parcel=None):
     """

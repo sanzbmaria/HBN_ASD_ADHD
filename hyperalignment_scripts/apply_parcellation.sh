@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# --- INPUTS (edit these if needed) ---
-# Your flat directory of dtseries files:
-BASEDIR="/Volumes/MyPassport-Selin/HBN_CIFTI/"
+# --- SOURCE CENTRALIZED CONFIGURATION ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/config.sh"
 
-# Choose where you want outputs to go.
-# Option A (recommended): a tidy project-local folder
-OUTDIR="/Volumes/FMRI2/data/hyperalignment_input/glasser_ptseries"
+# --- INPUTS ---
+# Override BASEDIR and OUTDIR from environment if needed
+# These are machine-specific absolute paths, so we use environment variables
+# Default to centralized config values if not set
+BASEDIR="${BASEDIR:-$DTSERIES_ROOT}"
+OUTDIR="${OUTDIR:-$PTSERIES_ROOT}"
+PARCELLATION="${PARCELLATION:-$PARCELLATION_FILE}"
 
-# Option B (alt): next to your data mirror (uncomment to use)
-# OUTDIR="/Users/maria/Documents/code/ASD/Data_mirror/Parcellated/glasser_ptseries"
-
-# Parcellation: Glasser MMP (the one you listed)
-PARCELLATION="/Volumes/FMRI2/hyperalignment_scripts/atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii"
-
-# (Optional) If you want Gordon instead, just swap the line above for:
-# PARCELLATION="HCP_S1200_Atlas_Z4_pkXDZ/Gordon333.32k_fs_LR.dlabel.nii"
+# Convert relative paths to absolute if needed
+if [[ ! "$BASEDIR" = /* ]]; then
+    BASEDIR="$SCRIPT_DIR/$BASEDIR"
+fi
+if [[ ! "$OUTDIR" = /* ]]; then
+    OUTDIR="$SCRIPT_DIR/$OUTDIR"
+fi
+if [[ ! "$PARCELLATION" = /* ]]; then
+    PARCELLATION="$SCRIPT_DIR/$PARCELLATION"
+fi
 
 # --- PREP ---
 mkdir -p "$OUTDIR"
@@ -25,8 +31,8 @@ mkdir -p "$OUTDIR"
 shopt -s nullglob
 
 # Parallelism and resume options
-# Set N_JOBS in the environment to override (e.g., export N_JOBS=12)
-N_JOBS=${N_JOBS:-22}
+# N_JOBS is now set from config.sh (can still be overridden by environment)
+N_JOBS=${N_JOBS:-24}
 # Set FORCE=1 to overwrite existing outputs
 FORCE=${FORCE:-0}
 
@@ -41,7 +47,8 @@ trap 'for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null || true; done' EXIT
 # Your files look like:
 #   sub-NDARAXXXXXXX_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii
 # Collect matching files into an array so we can show progress n/m
-files=( "$BASEDIR"/sub-*_task-rest_run-*_nogsr_Atlas_s5.dtseries.nii )
+# Use pattern from centralized config
+files=( "$BASEDIR"/$DTSERIES_FILENAME_PATTERN )
 total=${#files[@]}
 
 if [ "$total" -eq 0 ]; then
