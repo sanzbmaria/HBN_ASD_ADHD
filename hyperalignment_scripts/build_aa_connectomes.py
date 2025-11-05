@@ -233,6 +233,16 @@ if __name__ == "__main__":
     # Use intersection of subjects available in both dtseries and ptseries
     subjects2run = list(set(all_subjects).intersection(set(subjects_from_ptseries)))
 
+    # Filter for test mode if TEST_SUBJECTS_LIST is set
+    test_subjects_env = os.environ.get('TEST_SUBJECTS_LIST', '')
+    if test_subjects_env:
+        test_subjects = test_subjects_env.split()
+        subjects2run = [s for s in subjects2run if s in test_subjects]
+        if verbose:
+            print(f"TEST MODE: Filtering to {len(test_subjects)} test subjects")
+            print(f"Test subjects: {test_subjects}")
+            print(f"Found {len(subjects2run)} test subjects with complete data")
+
     if not subjects2run:
         if verbose:
             print(f"No subjects found with both dtseries and ptseries data!")

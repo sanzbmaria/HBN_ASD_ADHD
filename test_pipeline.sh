@@ -234,11 +234,13 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
     echo ""
     echo "Building anatomical connectomes from parcellated data..."
     echo "This creates the connectomes needed for hyperalignment training."
+    echo "Processing ${N_TEST} test subjects only..."
     echo ""
 
     docker run --rm \
         -v "${DATA_ROOT}":/data \
         -e N_JOBS=${N_JOBS} \
+        -e TEST_SUBJECTS_LIST="${SUBJECTS_TO_TEST}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 build_aa_connectomes.py \
