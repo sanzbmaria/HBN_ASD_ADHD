@@ -61,23 +61,59 @@ def read_config(config_path=None):
 # Load configuration at module import time
 _config = read_config()
 
-# Export as module-level variables for easy access
-POOL_NUM = _config.get('POOL_NUM', 24)
-N_JOBS = _config.get('N_JOBS', 24)
-VERTICES_IN_BOUNDS = _config.get('VERTICES_IN_BOUNDS', 59412)
-N_PARCELS = _config.get('N_PARCELS', 360)
+# Helper function to get value with priority: ENV > config.sh > default
+def _get_config_value(key, default, value_type=None):
+    """
+    Get configuration value with priority order:
+    1. Environment variable (highest priority)
+    2. config.sh value
+    3. Default value (lowest priority)
 
-DTSERIES_ROOT = _config.get('DTSERIES_ROOT', '../data/HBN_CIFTI/')
-PTSERIES_ROOT = _config.get('PTSERIES_ROOT', '../data/hyperalignment_input/glasser_ptseries/')
-BASE_OUTDIR = _config.get('BASE_OUTDIR', '../data/connectomes')
-TEMPORARY_OUTDIR = _config.get('TEMPORARY_OUTDIR', 'work')
+    Parameters
+    ----------
+    key : str
+        Configuration key name
+    default : any
+        Default value if not found
+    value_type : type, optional
+        Type to convert environment variable to (int, str, etc.)
 
-PARCELLATION_FILE = _config.get('PARCELLATION_FILE',
+    Returns
+    -------
+    any
+        Configuration value
+    """
+    # Check environment variable first
+    env_value = os.environ.get(key)
+    if env_value is not None:
+        if value_type == int:
+            try:
+                return int(env_value)
+            except ValueError:
+                pass  # Fall through to config.sh
+        return env_value
+
+    # Fall back to config.sh, then default
+    return _config.get(key, default)
+
+# Export as module-level variables with environment variable override support
+# Environment variables take precedence over config.sh values
+POOL_NUM = _get_config_value('POOL_NUM', 24, int)
+N_JOBS = _get_config_value('N_JOBS', 24, int)
+VERTICES_IN_BOUNDS = _get_config_value('VERTICES_IN_BOUNDS', 59412, int)
+N_PARCELS = _get_config_value('N_PARCELS', 360, int)
+
+DTSERIES_ROOT = _get_config_value('DTSERIES_ROOT', '../data/HBN_CIFTI/')
+PTSERIES_ROOT = _get_config_value('PTSERIES_ROOT', '../data/hyperalignment_input/glasser_ptseries/')
+BASE_OUTDIR = _get_config_value('BASE_OUTDIR', '../data/connectomes')
+TEMPORARY_OUTDIR = _get_config_value('TEMPORARY_OUTDIR', 'work')
+
+PARCELLATION_FILE = _get_config_value('PARCELLATION_FILE',
     'atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii')
 
-DTSERIES_FILENAME_TEMPLATE = _config.get('DTSERIES_FILENAME_TEMPLATE',
+DTSERIES_FILENAME_TEMPLATE = _get_config_value('DTSERIES_FILENAME_TEMPLATE',
     '{subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii')
-DTSERIES_FILENAME_PATTERN = _config.get('DTSERIES_FILENAME_PATTERN',
+DTSERIES_FILENAME_PATTERN = _get_config_value('DTSERIES_FILENAME_PATTERN',
     '*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii')
 
 # Derived values

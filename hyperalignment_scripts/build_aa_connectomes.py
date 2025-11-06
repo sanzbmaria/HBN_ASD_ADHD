@@ -215,10 +215,17 @@ def build_split_connectomes(subj_id, save_coarse=False):
     if verbose: print(f'finished split-half connectomes for {subj_id} saved at {base_outdir}')
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Build AA connectomes from parcellated data')
+    parser.add_argument('--mode', type=str, choices=['full', 'split', 'both'], default='both',
+                        help='Build full connectomes, split connectomes, or both (default: both)')
+    args = parser.parse_args()
+
     verbose = True
 
     if verbose:
-        print(f"Building AA connectomes")
+        print(f"Building AA connectomes (mode: {args.mode})")
         print(f"Output directory: {base_outdir}")
     
     # Use utils to find subjects (GSR-aware)
@@ -272,10 +279,12 @@ if __name__ == "__main__":
     
     if verbose:
         print(f"Processing {len(subjects_to_process)} incomplete subjects...")
-    
+
     for s in tqdm(subjects_to_process, desc="Setting up jobs"):
-        joblist.append(delayed(build_full_connectomes)(s, save_coarse=True))
-        #joblist.append(delayed(build_split_connectomes)(s, save_coarse=True))
+        if args.mode in ['full', 'both']:
+            joblist.append(delayed(build_full_connectomes)(s, save_coarse=True))
+        if args.mode in ['split', 'both']:
+            joblist.append(delayed(build_split_connectomes)(s, save_coarse=True))
     
     if verbose:
         print(f"Running {len(joblist)} jobs with {n_jobs} parallel workers...")
