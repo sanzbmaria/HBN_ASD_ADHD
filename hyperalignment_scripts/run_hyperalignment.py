@@ -1,9 +1,9 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 
 # MY CODEEEE
 #%%
-## Hyperalignment is run with python2 and pymvpa
-# all subsequent analyses are run with python3
+## Hyperalignment is run with PyMVPA2 (now compatible with Python 3.9+)
+# All analyses use Python 3
 
 import os
 import sys
@@ -400,6 +400,30 @@ def get_train_test_subjects(csv_path='../data/diagnosis_summary/matched_subjects
         (train_subjects, test_subjects) - lists of subject IDs
     """
     import pandas as pd
+
+    # TEST MODE: If TEST_SUBJECTS_LIST is set, use simple random split
+    test_subjects_env = os.environ.get('TEST_SUBJECTS_LIST', '')
+    if test_subjects_env:
+        print("TEST MODE: Using simple random train/test split")
+        test_subjects_list = test_subjects_env.split()
+        print("Test subjects from environment: {}".format(len(test_subjects_list)))
+
+        random.seed(42)
+        test_subjects_copy = list(test_subjects_list)
+        random.shuffle(test_subjects_copy)
+
+        # Split: 40% train, 60% test
+        n_train = max(1, int(len(test_subjects_copy) * 0.4))
+        train_subjects = test_subjects_copy[:n_train]
+        test_subjects = test_subjects_copy[n_train:]
+
+        print("Random split for test mode:")
+        print("  Training: {} subjects".format(len(train_subjects)))
+        print("  Test: {} subjects".format(len(test_subjects)))
+        print("  Train subjects: {}".format(train_subjects))
+        print("  Test subjects: {}".format(test_subjects))
+
+        return train_subjects, test_subjects
 
     # Check if CSV exists
     if not os.path.exists(csv_path):

@@ -268,6 +268,16 @@ def get_available_subjects(aligned_ts_dir, n_parcels):
     return sorted(list(subjects))
 
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Build CHA connectomes from hyperaligned data')
+    parser.add_argument('--mode', type=str, choices=['full', 'split', 'both'], default='both',
+                        help='Build full connectomes, split connectomes, or both (default: both)')
+    args = parser.parse_args()
+
+    if verbose:
+        print(f"Building CHA connectomes (mode: {args.mode})")
+
     # Set up directories using utils configuration
     aligned_ts_dir = os.path.join(utils.base_outdir, 'hyperalignment_output', 'aligned_timeseries')
     aligned_connectome_dir = os.path.join(utils.base_outdir, 'hyperalignment_output', 'connectomes')
@@ -300,11 +310,13 @@ if __name__ == '__main__':
             parcel_dir = os.path.join(aligned_connectome_dir, conn_type, f'parcel_{parcel:03d}')
             os.makedirs(parcel_dir, exist_ok=True)
 
-    # Build job list for both full and split connectomes
+    # Build job list based on mode argument
     joblist = []
     for s in subjects2run:
-        joblist.append(delayed(lambda subj: build_cha_full_connectomes(subj, aligned_ts_dir, aligned_connectome_dir, n_parcels))(s))
-        joblist.append(delayed(lambda subj: build_cha_split_connectomes(subj, aligned_ts_dir, aligned_connectome_dir, n_parcels))(s))
+        if args.mode in ['full', 'both']:
+            joblist.append(delayed(lambda subj: build_cha_full_connectomes(subj, aligned_ts_dir, aligned_connectome_dir, n_parcels))(s))
+        if args.mode in ['split', 'both']:
+            joblist.append(delayed(lambda subj: build_cha_split_connectomes(subj, aligned_ts_dir, aligned_connectome_dir, n_parcels))(s))
 
     # Run in parallel with tqdm progress bar
     with tqdm(total=len(joblist), desc="Building connectomes") as pbar:

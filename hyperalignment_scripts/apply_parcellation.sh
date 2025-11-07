@@ -114,7 +114,9 @@ done
 
 # Wait for remaining background jobs
 for pid in "${pids[@]:-}"; do
-  wait "$pid" || failed=$((failed+1))
+  if [ -n "$pid" ]; then
+    wait "$pid" || failed=$((failed+1))
+  fi
 done
 
 if [ "$failed" -ne 0 ]; then
