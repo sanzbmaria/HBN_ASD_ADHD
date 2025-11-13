@@ -53,6 +53,15 @@ def read_config(config_path=None):
                 # Try to convert to int if it looks like a number
                 if value.isdigit():
                     value = int(value)
+                # Try to convert to float if it has a decimal point
+                elif '.' in value:
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        pass  # Keep as string
+                # Convert boolean strings
+                elif value.lower() in ('true', 'false'):
+                    value = value.lower() == 'true'
 
                 config[key] = value
 
@@ -115,6 +124,26 @@ DTSERIES_FILENAME_TEMPLATE = _get_config_value('DTSERIES_FILENAME_TEMPLATE',
     '{subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii')
 DTSERIES_FILENAME_PATTERN = _get_config_value('DTSERIES_FILENAME_PATTERN',
     '*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii')
+
+# Subject selection configuration
+METADATA_EXCEL = _get_config_value('METADATA_EXCEL', '/data/HBN_ASD_ADHD.xlsx')
+SUBJECT_ID_COL = _get_config_value('SUBJECT_ID_COL', 'EID')
+SITE_COL = _get_config_value('SITE_COL', 'SITE')
+SEX_COL = _get_config_value('SEX_COL', 'Sex')
+AGE_COL = _get_config_value('AGE_COL', 'Age')
+MOTION_COL = _get_config_value('MOTION_COL', 'MeanFD')
+
+SELECTION_COL_1 = _get_config_value('SELECTION_COL_1', 'ASD')
+SELECTION_COL_2 = _get_config_value('SELECTION_COL_2', 'ADHD')
+SELECTION_COL_3 = _get_config_value('SELECTION_COL_3', 'ASD+ADHD')
+
+TRAIN_FRACTION = _get_config_value('TRAIN_FRACTION', 0.25, float)
+CV_FOLDS = _get_config_value('CV_FOLDS', 5, int)
+
+STRATIFY_BY_SITE = _get_config_value('STRATIFY_BY_SITE', True)
+STRATIFY_BY_SEX = _get_config_value('STRATIFY_BY_SEX', True)
+STRATIFY_BY_AGE = _get_config_value('STRATIFY_BY_AGE', True)
+STRATIFY_BY_MOTION = _get_config_value('STRATIFY_BY_MOTION', True)
 
 # Derived values
 LOGDIR = os.path.join(BASE_OUTDIR, 'logs')

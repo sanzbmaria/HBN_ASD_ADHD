@@ -1,10 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+organize_subjects.py - Flexible subject selection for hyperalignment
+
+This script reads metadata from an Excel file and creates train/test splits
+for hyperalignment. Configuration is loaded from config.sh.
+
+CUSTOMIZATION FOR YOUR DATASET:
+1. Update config.sh with your Excel path and column names
+2. Modify derive_dx_row() function (lines ~170-180) for your selection logic
+3. Or skip this script and provide subject lists via TEST_SUBJECTS_LIST env var
+
+Example: For a study with "CONTROL" and "PATIENT" columns instead of ASD/ADHD:
+- Set SELECTION_COL_1="CONTROL" and SELECTION_COL_2="PATIENT" in config.sh
+- Update derive_dx_row() to return "Control" or "Patient" based on your logic
+"""
 
 import os, re, glob, argparse
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
+from read_config import (
+    METADATA_EXCEL, SUBJECT_ID_COL, SITE_COL, SEX_COL, AGE_COL, MOTION_COL,
+    SELECTION_COL_1, SELECTION_COL_2, SELECTION_COL_3,
+    TRAIN_FRACTION, CV_FOLDS,
+    STRATIFY_BY_SITE, STRATIFY_BY_SEX, STRATIFY_BY_AGE, STRATIFY_BY_MOTION
+)
 
 # ---------------------------- Helpers ----------------------------
 
@@ -103,10 +124,10 @@ def choose_n_splits(labels, requested):
 
 def main():
     ap = argparse.ArgumentParser(description="Diagnosis-agnostic, representative CHA train/test split + CV folds.")
-    ap.add_argument("--excel", default="HBN_ASD_ADHD.xlsx", help="Path to metadata Excel")
+    ap.add_argument("--excel", default=METADATA_EXCEL, help="Path to metadata Excel (default from config.sh)")
     ap.add_argument("--local_dir", default="ASD/CHA2/Data_mirror/HBN_rsfMRI_32k_sm5_gsr", help="Root with dtseries files")
-    ap.add_argument("--train_frac", type=float, default=0.25, help="Fraction for CHA training (0-1)")
-    ap.add_argument("--folds", type=int, default=5, help="Requested number of CV folds for test pool")
+    ap.add_argument("--train_frac", type=float, default=TRAIN_FRACTION, help="Fraction for CHA training (0-1, default from config.sh)")
+    ap.add_argument("--folds", type=int, default=CV_FOLDS, help="Requested number of CV folds for test pool (default from config.sh)")
     ap.add_argument("--seed", type=int, default=42, help="Random seed")
     ap.add_argument("--out_prefix", default="", help="Optional prefix for output CSVs")
     args = ap.parse_args()
@@ -127,53 +148,74 @@ def main():
     # ---- Load Excel ----
     df = pd.read_excel(args.excel)
 
-    # ---- Map known columns (from your sheet) ----
-    if "EID" not in df.columns:
-        raise KeyError(f"EID column not found. Available: {list(df.columns)}")
+    # ---- Map known columns (from config.sh) ----
+    if SUBJECT_ID_COL not in df.columns:
+        raise KeyError(f"{SUBJECT_ID_COL} column not found. Available: {list(df.columns)}")
 
-    SITE   = "SITE"    if "SITE"    in df.columns else None
-    SEX    = "Sex"     if "Sex"     in df.columns else None
-    AGE    = "Age"     if "Age"     in df.columns else None
-    MEANFD = "MeanFD"  if "MeanFD"  in df.columns else None
+    # Optional columns - use config values if they exist and are not empty strings
+    SITE_col   = SITE_COL   if SITE_COL   and SITE_COL   in df.columns else None
+    SEX_col    = SEX_COL    if SEX_COL    and SEX_COL    in df.columns else None
+    AGE_col    = AGE_COL    if AGE_COL    and AGE_COL    in df.columns else None
+    MEANFD_col = MOTION_COL if MOTION_COL and MOTION_COL in df.columns else None
 
-    ASD_col     = "ASD"        if "ASD"        in df.columns else None
-    ADHD_col    = "ADHD"       if "ADHD"       in df.columns else None
-    ASDADHD_col = "ASD+ADHD"   if "ASD+ADHD"   in df.columns else None
+    # Selection columns - these are used for deriving groups/diagnosis
+    SEL_col_1 = SELECTION_COL_1 if SELECTION_COL_1 and SELECTION_COL_1 in df.columns else None
+    SEL_col_2 = SELECTION_COL_2 if SELECTION_COL_2 and SELECTION_COL_2 in df.columns else None
+    SEL_col_3 = SELECTION_COL_3 if SELECTION_COL_3 and SELECTION_COL_3 in df.columns else None
 
     # ---- Excel-side normalized key and candidate subject_id ----
-    df["EID_str"] = df["EID"].astype(str).str.strip()
+    df["EID_str"] = df[SUBJECT_ID_COL].astype(str).str.strip()
     df["nk"] = df["EID_str"].map(norm_key)
     df["subject_id_excel"] = df["EID_str"].map(to_sub_id)  # e.g., sub-NDARINV...
 
-    # ---- Diagnosis (NaN-safe) ----
-    df["_asd01"]   = to01(df[ASD_col])      if ASD_col      else 0
-    df["_adhd01"]  = to01(df[ADHD_col])     if ADHD_col     else 0
-    df["_both01"]  = to01(df[ASDADHD_col])  if ASDADHD_col  else 0
+    # ---- Group/Diagnosis derivation (NaN-safe) ----
+    # CUSTOMIZE THIS FUNCTION for your dataset:
+    # For example, if you have "CONTROL" and "PATIENT" columns, update the logic below
+    df["_sel01_1"] = to01(df[SEL_col_1]) if SEL_col_1 else 0
+    df["_sel01_2"] = to01(df[SEL_col_2]) if SEL_col_2 else 0
+    df["_sel01_3"] = to01(df[SEL_col_3]) if SEL_col_3 else 0
 
     def derive_dx_row(row):
-        asd, adhd, both = row["_asd01"], row["_adhd01"], row["_both01"]
-        if both == 1 or (asd == 1 and adhd == 1):
+        """
+        CUSTOMIZE THIS FUNCTION for your dataset.
+
+        Default logic for HBN ASD/ADHD dataset:
+        - If both ASD and ADHD (or ASD+ADHD column is 1): "ASD+ADHD"
+        - If only ASD: "ASD"
+        - If only ADHD: "ADHD"
+        - Otherwise: "TD" (Typically Developing)
+
+        For other datasets, modify this to match your groups.
+        Example for a control/patient study:
+            if row["_sel01_1"] == 1:
+                return "Patient"
+            else:
+                return "Control"
+        """
+        sel1, sel2, sel3 = row["_sel01_1"], row["_sel01_2"], row["_sel01_3"]
+        if sel3 == 1 or (sel1 == 1 and sel2 == 1):
             return "ASD+ADHD"
-        if asd == 1:
+        if sel1 == 1:
             return "ASD"
-        if adhd == 1:
+        if sel2 == 1:
             return "ADHD"
         return "TD"
     df["diagnosis"] = df.apply(derive_dx_row, axis=1)
 
     # ---- Covariates / bins for representativeness ----
-    df["site"] = df[SITE].astype(str) if SITE else "NA"
-    df["sex"]  = normalize_sex(df[SEX]) if SEX else "U"
+    # These are used for stratified sampling to ensure train/test splits are representative
+    df["site"] = df[SITE_col].astype(str) if SITE_col else "NA"
+    df["sex"]  = normalize_sex(df[SEX_col]) if SEX_col else "U"
 
-    if AGE:
-        df["age_bin"] = ensure_bins_numeric(df[AGE], bins=[7,10,13,18],
+    if AGE_col:
+        df["age_bin"] = ensure_bins_numeric(df[AGE_col], bins=[7,10,13,18],
                                             labels=["8-10","11-13","14-17"],
                                             default_label="allAge")
     else:
         df["age_bin"] = pd.Categorical(["allAge"] * len(df), categories=["allAge"])
 
-    if MEANFD:
-        fd_bins = ensure_bins_numeric(df[MEANFD], q=3,
+    if MEANFD_col:
+        fd_bins = ensure_bins_numeric(df[MEANFD_col], q=3,
                                       labels=["lowFD","midFD","highFD"],
                                       default_label="allFD")
         df["fd_bin"] = fd_bins if len(fd_bins) == len(df) \
@@ -200,12 +242,26 @@ def main():
     # Use the *actual local* sub-id for downstream paths
     matched["subject_id"] = matched["matched_local_subid"]
 
-    # ---- Build strata: site × sex × age_bin × fd_bin ----
-    parts = [matched["site"].astype(str), matched["sex"].astype(str),
-             matched["age_bin"].astype(str), matched["fd_bin"].astype(str)]
-    matched["strata"] = parts[0]
-    for p in parts[1:]:
-        matched["strata"] = matched["strata"] + "_" + p
+    # ---- Build strata based on config.sh STRATIFY_BY_* settings ----
+    # Build list of columns to stratify by
+    strata_cols = []
+    if STRATIFY_BY_SITE:
+        strata_cols.append(matched["site"].astype(str))
+    if STRATIFY_BY_SEX:
+        strata_cols.append(matched["sex"].astype(str))
+    if STRATIFY_BY_AGE:
+        strata_cols.append(matched["age_bin"].astype(str))
+    if STRATIFY_BY_MOTION:
+        strata_cols.append(matched["fd_bin"].astype(str))
+
+    # Combine into strata string
+    if strata_cols:
+        matched["strata"] = strata_cols[0]
+        for col in strata_cols[1:]:
+            matched["strata"] = matched["strata"] + "_" + col
+    else:
+        # If no stratification enabled, use single stratum
+        matched["strata"] = pd.Categorical(["all"] * len(matched), categories=["all"])
 
     # ---- Diagnosis-agnostic CHA training via stratified sampling ----
     train_ids = []

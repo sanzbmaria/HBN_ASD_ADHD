@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run the hyperalignment Docker container interactively
-# This script is for local testing - use PBS scripts for cluster execution
+# This script opens an interactive bash shell inside the container for manual testing
 
 set -e
 
