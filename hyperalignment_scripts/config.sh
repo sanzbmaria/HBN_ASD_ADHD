@@ -21,3 +21,18 @@ PARCELLATION_FILE="atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Fina
 # File naming patterns
 DTSERIES_FILENAME_TEMPLATE="{subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
 DTSERIES_FILENAME_PATTERN="*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
+
+# Subject selection configuration (for organize_subjects.py)
+# Path to metadata Excel file (relative to /data in container or absolute)
+METADATA_EXCEL="/data/HBN_ASD_ADHD.xlsx"
+
+# Excel column names - customize these for your dataset
+SUBJECT_ID_COL="EID"           # Column containing subject IDs
+SPLIT_COL="split"              # Column with "train" or "test" assignments
+
+# That's it! Just provide an Excel with:
+# - A subject ID column (e.g., "EID", "subject", "participant_id")
+# - A split column with "train" or "test" for each subject
+#
+# Do your own stratification/random splitting however you want outside the pipeline,
+# then provide the final assignments in your Excel file.

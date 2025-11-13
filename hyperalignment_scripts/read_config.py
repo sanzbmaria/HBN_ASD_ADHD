@@ -53,6 +53,15 @@ def read_config(config_path=None):
                 # Try to convert to int if it looks like a number
                 if value.isdigit():
                     value = int(value)
+                # Try to convert to float if it has a decimal point
+                elif '.' in value:
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        pass  # Keep as string
+                # Convert boolean strings
+                elif value.lower() in ('true', 'false'):
+                    value = value.lower() == 'true'
 
                 config[key] = value
 
@@ -115,6 +124,11 @@ DTSERIES_FILENAME_TEMPLATE = _get_config_value('DTSERIES_FILENAME_TEMPLATE',
     '{subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii')
 DTSERIES_FILENAME_PATTERN = _get_config_value('DTSERIES_FILENAME_PATTERN',
     '*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii')
+
+# Subject selection configuration
+METADATA_EXCEL = _get_config_value('METADATA_EXCEL', '/data/HBN_ASD_ADHD.xlsx')
+SUBJECT_ID_COL = _get_config_value('SUBJECT_ID_COL', 'EID')
+SPLIT_COL = _get_config_value('SPLIT_COL', 'split')
 
 # Derived values
 LOGDIR = os.path.join(BASE_OUTDIR, 'logs')

@@ -449,8 +449,8 @@ if [ "${VALIDATION_PASSED}" = "true" ]; then
     echo "Logs: $(pwd)/logs/"
     echo ""
     echo "Next steps:"
-    echo "  - For local full run: ./local_scripts/run_full_pipeline.sh"
-    echo "  - For PBS cluster: See DOCKER_PBS_README.md"
+    echo "  - For full run: ./local_scripts/run_full_pipeline.sh"
+    echo "  - See README.md for more information"
     echo "================================================"
     exit 0
 else
