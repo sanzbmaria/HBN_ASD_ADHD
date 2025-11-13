@@ -124,25 +124,14 @@ DTSERIES_FILENAME_PATTERN="*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
 ```bash
 METADATA_EXCEL="/data/HBN_ASD_ADHD.xlsx"
 SUBJECT_ID_COL="EID"                 # Column with subject IDs
-SITE_COL="SITE"                      # Site/scanner column
-SEX_COL="Sex"                        # Sex/gender column
-AGE_COL="Age"                        # Age column
-MOTION_COL="MeanFD"                  # Motion metric column
-
-# Columns used for grouping (e.g., diagnosis)
-SELECTION_COL_1="ASD"
-SELECTION_COL_2="ADHD"
-SELECTION_COL_3="ASD+ADHD"
-
-TRAIN_FRACTION=0.25                  # Fraction for hyperalignment training
-CV_FOLDS=5                           # Cross-validation folds
-
-# Stratification for train/test split
-STRATIFY_BY_SITE=true
-STRATIFY_BY_SEX=true
-STRATIFY_BY_AGE=true
-STRATIFY_BY_MOTION=true
+SPLIT_COL="split"                    # Column with "train" or "test" assignments
 ```
+
+**That's it!** Just provide an Excel file with:
+- A subject ID column
+- A split column with "train" or "test" for each subject
+
+Do your own train/test splitting however you want (stratified, random, etc.) outside the pipeline, then provide the final assignments.
 
 ### Environment Variable Overrides
 You can override any config.sh setting with environment variables:
@@ -156,35 +145,63 @@ export END_PARCEL=10
 
 ## Adapting to Your Dataset
 
-This pipeline can be adapted to other datasets in three ways:
+This pipeline is designed to be dataset-agnostic. Here's how to adapt it:
 
-### Option 1: Update config.sh (Recommended)
-For basic adaptations (different column names, file patterns, paths):
-1. Edit `hyperalignment_scripts/config.sh`
-2. Update paths, column names, and file patterns
-3. Run the pipeline
-
-### Option 2: Customize organize_subjects.py
-For different subject selection criteria:
-1. Edit `hyperalignment_scripts/config.sh` - update column names
-2. Edit `hyperalignment_scripts/organize_subjects.py` - modify the `derive_dx_row()` function (~line 178-202) to match your grouping logic
-3. Run `python organize_subjects.py` to generate subject lists
-
-Example for a Control/Patient study:
-```python
-def derive_dx_row(row):
-    if row["_sel01_1"] == 1:
-        return "Patient"
-    else:
-        return "Control"
+### Step 1: Organize Your Data
+Put your dtseries files in a directory:
+```
+/path/to/your/data/
+└── HBN_CIFTI/  # or any name, update DTSERIES_ROOT in config.sh
+    ├── sub-001_task-rest_*.dtseries.nii
+    ├── sub-002_task-rest_*.dtseries.nii
+    └── ...
 ```
 
-### Option 3: Provide Subject Lists Directly
-Skip organize_subjects.py entirely:
-1. Create your own subject lists: `cha_train.csv`, `test_pool.csv`
-2. Or use `TEST_SUBJECTS_LIST` environment variable:
+### Step 2: Create Your Excel File
+Create an Excel file with two required columns:
+
+| subject_id | split |
+|------------|-------|
+| sub-001    | train |
+| sub-002    | test  |
+| sub-003    | train |
+| ...        | ...   |
+
+**Optional**: Add any other columns you want (age, diagnosis, site, etc.) - they'll be preserved in the output CSVs but won't affect the pipeline.
+
+### Step 3: Update config.sh
+Edit `hyperalignment_scripts/config.sh`:
+```bash
+# Update paths to match your data
+DTSERIES_ROOT="/data/your_data_folder/"
+
+# Update file pattern if your files are named differently
+DTSERIES_FILENAME_PATTERN="*_your_pattern_*.dtseries.nii"
+
+# Update Excel configuration
+METADATA_EXCEL="/data/your_subjects.xlsx"
+SUBJECT_ID_COL="subject_id"  # Column name for subject IDs
+SPLIT_COL="split"            # Column name for train/test split
+```
+
+### Step 4: Generate Subject Lists (Optional)
+If you're using an Excel file:
+```bash
+python hyperalignment_scripts/organize_subjects.py
+# Creates: cha_train.csv and test_pool.csv
+```
+
+Or skip this and directly provide subject lists via environment variable:
 ```bash
 export TEST_SUBJECTS_LIST="sub-001 sub-002 sub-003"
+./test_pipeline.sh
+```
+
+### Step 5: Run the Pipeline
+```bash
+export DATA_ROOT=/path/to/your/data
+./test_pipeline.sh  # Test first
+./local_scripts/run_full_pipeline.sh  # Full run
 ```
 
 ## Common Use Cases
