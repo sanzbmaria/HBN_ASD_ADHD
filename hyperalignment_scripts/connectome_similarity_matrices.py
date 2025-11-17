@@ -162,6 +162,15 @@ def process_single_parcel(parcel, all_subjects, split_subjects, outdir, aa_dir, 
     return parcel
 
 
+def process_parcel_with_error_handling(p, all_subjects, split_subjects, outdir, aa_dir, cha_dir, n_jobs):
+    """Wrapper to handle errors gracefully during batch processing"""
+    try:
+        return process_single_parcel(p, all_subjects, split_subjects, outdir, aa_dir, cha_dir, n_jobs)
+    except Exception as e:
+        print(f"\nError processing parcel {p}: {e}")
+        return None
+
+
 if __name__ == "__main__":
     # Handle both command line and Jupyter notebook execution
     if len(sys.argv) < 2 or any('kernel' in arg or '--f=' in arg for arg in sys.argv):
@@ -266,19 +275,36 @@ if __name__ == "__main__":
         print(f"Finished parcel {parcel}")
 
     elif mode == 'batch':
-        # Run analysis for all 360 parcels with progress bar
+        # Run analysis for all 360 parcels with parallelization
         print(f"\nProcessing all 360 parcels")
         print(f"Total subjects (full): {len(all_subjects)}")
         print(f"Total subjects (splits): {len(split_subjects)}")
         print(f"Using GSR: {utils.USE_GSR}")
 
-        # Process each parcel sequentially with progress bar
-        for p in tqdm(range(1, 361), desc="Processing parcels"):
-            try:
-                process_single_parcel(p, all_subjects, split_subjects, outdir, aa_dir, cha_dir, n_jobs=utils.N_JOBS)
-            except Exception as e:
-                print(f"\nError processing parcel {p}: {e}")
-                continue
+        # Smart parallelization: balance parcel-level and task-level parallelism
+        # Use sqrt approach to avoid CPU oversubscription
+        import math
+        total_jobs = utils.N_JOBS
+        n_parcel_jobs = max(1, int(math.sqrt(total_jobs)))  # Parcels in parallel
+        n_task_jobs = max(1, total_jobs // n_parcel_jobs)    # Tasks per parcel
+
+        print(f"Parallelization: {n_parcel_jobs} parcels × {n_task_jobs} tasks/parcel = {n_parcel_jobs * n_task_jobs} total jobs")
+
+        # Create job list for all parcels
+        parcel_jobs = [
+            delayed(process_parcel_with_error_handling)(p, all_subjects, split_subjects, outdir, aa_dir, cha_dir, n_task_jobs)
+            for p in range(1, 361)
+        ]
+
+        # Process parcels in parallel with progress tracking
+        print(f"Starting parallel processing...")
+        with Parallel(n_jobs=n_parcel_jobs, verbose=10) as parallel:
+            results = parallel(parcel_jobs)
+
+        # Report any failed parcels
+        failed_parcels = [i+1 for i, r in enumerate(results) if r is None]
+        if failed_parcels:
+            print(f"\nWarning: {len(failed_parcels)} parcels failed: {failed_parcels[:10]}{'...' if len(failed_parcels) > 10 else ''}")
 
         print("\nFinished all parcels!")
         print(f"Results saved in: {outdir}")
