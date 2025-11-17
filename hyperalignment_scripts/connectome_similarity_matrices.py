@@ -279,7 +279,6 @@ if __name__ == "__main__":
         print(f"\nProcessing all 360 parcels")
         print(f"Total subjects (full): {len(all_subjects)}")
         print(f"Total subjects (splits): {len(split_subjects)}")
-        print(f"Using GSR: {utils.USE_GSR}")
 
         # Smart parallelization: balance parcel-level and task-level parallelism
         # Use sqrt approach to avoid CPU oversubscription

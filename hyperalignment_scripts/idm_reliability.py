@@ -95,16 +95,28 @@ def run_reliability(fn0, fn1):
 def build_file_paths():
     """
     Find all split matrix pairs dynamically
+    Supports both old (split0) and new (split_0) naming patterns
     """
     file_specs = []
-    
-    # Find all files with split0 in similarity directory
-    pattern = os.path.join(config.similarity_dir, "*split0*.csv")
-    split0_files = glob.glob(pattern)
-    
+
+    # Find all files with split patterns in similarity directory
+    # Try new pattern first (split_0), then old pattern (split0)
+    pattern_new = os.path.join(config.similarity_dir, "*split_0*.csv")
+    pattern_old = os.path.join(config.similarity_dir, "*split0*.csv")
+
+    split0_files = glob.glob(pattern_new)
+    if not split0_files:
+        split0_files = glob.glob(pattern_old)
+        use_old_pattern = True
+    else:
+        use_old_pattern = False
+
     for split0_file in split0_files:
-        # Generate corresponding split1 filename
-        split1_file = split0_file.replace('split0', 'split1')
+        # Generate corresponding split1 filename based on pattern used
+        if use_old_pattern:
+            split1_file = split0_file.replace('split0', 'split1')
+        else:
+            split1_file = split0_file.replace('split_0', 'split_1')
         
         if os.path.exists(split1_file):
             # Parse the filename to extract components
