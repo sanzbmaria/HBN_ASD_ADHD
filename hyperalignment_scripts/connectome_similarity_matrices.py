@@ -245,8 +245,7 @@ if __name__ == "__main__":
         print(f"Found {len(split_subjects)} subjects with split connectomes (intersection)")
         if len(split_subjects) > 0:
             print(f"Sample split subjects: {split_subjects[:5]}")
-            # Use split_subjects for both all_subjects and split_subjects
-            all_subjects = split_subjects
+            # Keep all_subjects empty since we only have split connectomes
         else:
             print("ERROR: No common subjects found between AA and CHA split datasets")
             sys.exit(1)
