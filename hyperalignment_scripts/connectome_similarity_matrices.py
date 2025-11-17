@@ -132,6 +132,33 @@ def IS_covariance(scale, alignment, parcel, connectome_dir, outdir, subjects, sp
         print(f"Error in covariance for {alignment} {scale} parcel {parcel} split {split}: {e}")
 
 
+def is_parcel_complete(parcel, all_subjects, split_subjects, outdir):
+    """
+    Check if all expected output files exist for a parcel
+    Returns True if parcel is complete, False otherwise
+    """
+    expected_files = []
+
+    # Check for all combinations of alignment, scale, metric, and split
+    for alignment in ['aa', 'cha']:
+        for scale in ['coarse', 'fine']:
+            for metric in ['ISC', 'COV']:
+                # Full connectome files (if applicable)
+                if len(all_subjects) > 0:
+                    fn = f'{outdir}/{alignment}_{scale}_full_parcel_{parcel:03d}_{metric}.csv'
+                    expected_files.append(fn)
+
+                # Split connectome files (if applicable)
+                if len(split_subjects) > 0:
+                    for split in [0, 1]:
+                        fn = f'{outdir}/{alignment}_{scale}_split{split}_parcel_{parcel:03d}_{metric}.csv'
+                        expected_files.append(fn)
+
+    # Check if all expected files exist
+    all_exist = all(os.path.exists(fn) for fn in expected_files)
+    return all_exist
+
+
 def process_single_parcel(parcel, all_subjects, split_subjects, outdir, aa_dir, cha_dir, n_jobs=1):
     """Process a single parcel"""
     joblist = []
@@ -289,19 +316,32 @@ if __name__ == "__main__":
 
         print(f"Parallelization: {n_parcel_jobs} parcels × {n_task_jobs} tasks/parcel = {n_parcel_jobs * n_task_jobs} total jobs")
 
-        # Create job list for all parcels
+        # Check which parcels are already complete (resumability)
+        print("Checking for already completed parcels...")
+        all_parcels = list(range(1, 361))
+        completed_parcels = [p for p in all_parcels if is_parcel_complete(p, all_subjects, split_subjects, outdir)]
+        incomplete_parcels = [p for p in all_parcels if p not in completed_parcels]
+
+        print(f"Already completed: {len(completed_parcels)} parcels")
+        print(f"Remaining: {len(incomplete_parcels)} parcels")
+
+        if len(incomplete_parcels) == 0:
+            print("All parcels already completed!")
+            sys.exit(0)
+
+        # Create job list only for incomplete parcels
         parcel_jobs = [
             delayed(process_parcel_with_error_handling)(p, all_subjects, split_subjects, outdir, aa_dir, cha_dir, n_task_jobs)
-            for p in range(1, 361)
+            for p in incomplete_parcels
         ]
 
         # Process parcels in parallel with progress tracking
-        print(f"Starting parallel processing...")
+        print(f"Starting parallel processing of {len(incomplete_parcels)} parcels...")
         with Parallel(n_jobs=n_parcel_jobs, verbose=10) as parallel:
             results = parallel(parcel_jobs)
 
         # Report any failed parcels
-        failed_parcels = [i+1 for i, r in enumerate(results) if r is None]
+        failed_parcels = [incomplete_parcels[i] for i, r in enumerate(results) if r is None]
         if failed_parcels:
             print(f"\nWarning: {len(failed_parcels)} parcels failed: {failed_parcels[:10]}{'...' if len(failed_parcels) > 10 else ''}")
 
