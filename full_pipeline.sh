@@ -14,8 +14,9 @@ IMAGE_NAME="hyperalignment:latest"
 DATA_ROOT="${DATA_ROOT:-}"
 
 # Configuration overrides (optional - will use config.sh defaults if not set)
-DTSERIES_ROOT="${DTSERIES_ROOT:-/data/HBN_CIFTI}"
-PTSERIES_ROOT="${PTSERIES_ROOT:-/data/hyperalignment_input/glasser_ptseries}"
+# Note: Trailing slashes are included to match config.sh
+DTSERIES_ROOT="${DTSERIES_ROOT:-/data/HBN_CIFTI/}"
+PTSERIES_ROOT="${PTSERIES_ROOT:-/data/hyperalignment_input/glasser_ptseries/}"
 BASE_OUTDIR="${BASE_OUTDIR:-/data/connectomes}"
 N_JOBS="${N_JOBS:-24}"
 POOL_NUM="${POOL_NUM:-24}"

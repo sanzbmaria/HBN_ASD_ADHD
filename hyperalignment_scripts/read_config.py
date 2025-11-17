@@ -115,9 +115,11 @@ N_PARCELS = _get_config_value('N_PARCELS', 360, int)
 # Pipeline mode control
 CONNECTOME_MODE = _get_config_value('CONNECTOME_MODE', 'both')
 
-DTSERIES_ROOT = _get_config_value('DTSERIES_ROOT', '../data/HBN_CIFTI/')
-PTSERIES_ROOT = _get_config_value('PTSERIES_ROOT', '../data/hyperalignment_input/glasser_ptseries/')
-BASE_OUTDIR = _get_config_value('BASE_OUTDIR', '../data/connectomes')
+# Directory paths - defaults match Docker container paths
+# Environment variables override these when running in Docker
+DTSERIES_ROOT = _get_config_value('DTSERIES_ROOT', '/data/HBN_CIFTI/')
+PTSERIES_ROOT = _get_config_value('PTSERIES_ROOT', '/data/hyperalignment_input/glasser_ptseries/')
+BASE_OUTDIR = _get_config_value('BASE_OUTDIR', '/data/connectomes')
 TEMPORARY_OUTDIR = _get_config_value('TEMPORARY_OUTDIR', 'work')
 
 PARCELLATION_FILE = _get_config_value('PARCELLATION_FILE',
