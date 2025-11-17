@@ -141,20 +141,34 @@ def build_file_paths():
 if __name__ == '__main__':
     print("=== IDM RELIABILITY ANALYSIS ===")
     print(f"Similarity matrices directory: {config.similarity_dir}")
-    
+
+    # Check for existing results (resumability)
+    output_file = os.path.join(config.results_dir, 'reliability_results.csv')
+    if os.path.exists(output_file):
+        print(f"\n✓ Reliability results already exist: {output_file}")
+        print("Skipping analysis (resumability enabled)")
+        print("Delete the file to recompute or use --force flag")
+
+        # Load and display existing results
+        df_existing = pd.read_csv(output_file)
+        print(f"\nFound {len(df_existing)} existing reliability results")
+        print("\n=== EXISTING RESULTS SUMMARY ===")
+        print(df_existing.to_string(index=False, float_format='%.4f'))
+        sys.exit(0)
+
     # Create results dataframe
     df = pd.DataFrame(columns=['align', 'scale', 'metric', 'r', 'p', 'z'])
-    
+
     # Build file specifications dynamically
     file_specs = build_file_paths()
-    
+
     if not file_specs:
         print("No split matrix pairs found!")
         print(f"Looking in: {config.similarity_dir}")
         print("Expected files with 'split0' and 'split1' in filename")
         print("Make sure you've run connectome_similarity_matrices.py first")
         sys.exit(1)
-    
+
     print(f"Found {len(file_specs)} split matrix pairs")
     
     # Prepare job list
@@ -192,9 +206,8 @@ if __name__ == '__main__':
     if len(df_clean) == 0:
         print("Error: No successful reliability analyses")
         sys.exit(1)
-    
-    # Save results
-    output_file = os.path.join(config.results_dir, 'reliability_results.csv')
+
+    # Save results (output_file already defined at top of main block)
     df_clean.to_csv(output_file, index=False)
     print(f"Results saved to: {output_file}")
     
