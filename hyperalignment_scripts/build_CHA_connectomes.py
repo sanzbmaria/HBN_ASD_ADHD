@@ -158,7 +158,7 @@ def build_cha_split_connectomes(subj_id, aligned_ts_dir, aligned_connectome_dir,
         missing_parcels = []
         
         for parcel in range(1, n_parcels + 1):
-            ts_file = os.path.join(aligned_ts_dir, f'parcel_{parcel:03d}', f'{subj_id}_aligned_dtseries_split{split}.npy')
+            ts_file = os.path.join(aligned_ts_dir, f'parcel_{parcel:03d}', f'{subj_id}_aligned_dtseries_split_{split}.npy')
             
             if os.path.exists(ts_file):
                 try:
@@ -218,7 +218,7 @@ def build_cha_split_connectomes(subj_id, aligned_ts_dir, aligned_connectome_dir,
             
             coarse_dir = os.path.join(aligned_connectome_dir, 'coarse', f'parcel_{parcel:03d}')
             os.makedirs(coarse_dir, exist_ok=True)
-            np.save(os.path.join(coarse_dir, f'{subj_id}_split{split}_connectome_parcel_{parcel:03d}.npy'), cp)
+            np.save(os.path.join(coarse_dir, f'{subj_id}_split_{split}_connectome_parcel_{parcel:03d}.npy'), cp)
             #print(f'Saved coarse connectome for subject {subj_id}, parcel {parcel}, split {split}')
         # now correlate the coarse TS with the parcel TS to get a fine connectome
         for ts, parcel in zip(valid_timeseries, valid_parcels):
@@ -231,7 +231,7 @@ def build_cha_split_connectomes(subj_id, aligned_ts_dir, aligned_connectome_dir,
                 cnx = 1 - cdist(coarse, ts.T, 'correlation')
                 fine_dir = os.path.join(aligned_connectome_dir, 'fine', f'parcel_{parcel:03d}')
                 os.makedirs(fine_dir, exist_ok=True)
-                np.save(os.path.join(fine_dir, f'{subj_id}_split{split}_connectome_parcel_{parcel:03d}.npy'), cnx)
+                np.save(os.path.join(fine_dir, f'{subj_id}_split_{split}_connectome_parcel_{parcel:03d}.npy'), cnx)
                 #print(f'Saved fine connectome for subject {subj_id}, parcel {parcel}, split {split}') 
             except Exception as e:
                 msg = f'Error computing fine connectome for subject {subj_id}, parcel {parcel}, split {split}: {e}'
@@ -254,7 +254,7 @@ def get_available_subjects(aligned_ts_dir, n_parcels):
         if os.path.exists(parcel_dir):
             # Find all aligned timeseries files
             full_files = glob.glob(os.path.join(parcel_dir, '*_aligned_dtseries.npy'))
-            split_files = glob.glob(os.path.join(parcel_dir, '*_aligned_dtseries_split0.npy'))
+            split_files = glob.glob(os.path.join(parcel_dir, '*_aligned_dtseries_split_0.npy'))
             
             # Extract subject IDs
             for f in full_files:
@@ -262,7 +262,7 @@ def get_available_subjects(aligned_ts_dir, n_parcels):
                 subjects.add(subj_id)
             
             for f in split_files:
-                subj_id = os.path.basename(f).replace('_aligned_dtseries_split0.npy', '')
+                subj_id = os.path.basename(f).replace('_aligned_dtseries_split_0.npy', '')
                 subjects.add(subj_id)
     
     return sorted(list(subjects))

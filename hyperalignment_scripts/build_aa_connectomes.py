@@ -57,8 +57,8 @@ def check_completion_status(subjects_list):
         split_complete = True
         for parcel in range(1, n_parcels + 1):
             fine_parcel_dir = f'{base_outdir}/fine/parcel_{parcel:03d}'
-            split0_out = os.path.join(fine_parcel_dir, f'{subj_id}_split0_connectome_parcel_{parcel:03d}.npy')
-            split1_out = os.path.join(fine_parcel_dir, f'{subj_id}_split1_connectome_parcel_{parcel:03d}.npy')
+            split0_out = os.path.join(fine_parcel_dir, f'{subj_id}_split_0_connectome_parcel_{parcel:03d}.npy')
+            split1_out = os.path.join(fine_parcel_dir, f'{subj_id}_split_1_connectome_parcel_{parcel:03d}.npy')
             if not (os.path.exists(split0_out) and os.path.exists(split1_out)):
                 split_complete = False
                 break
@@ -175,14 +175,14 @@ def build_split_connectomes(subj_id, save_coarse=False):
                 target_indices = np.setdiff1d(np.arange(n_parcels), i)
 
                 # paths for resumability
-                out_split0 = os.path.join(fine_parcel_dir, f'{subj_id}_split0_connectome_parcel_{parcel:03d}.npy')
-                out_split1 = os.path.join(fine_parcel_dir, f'{subj_id}_split1_connectome_parcel_{parcel:03d}.npy')
+                out_split0 = os.path.join(fine_parcel_dir, f'{subj_id}_split_0_connectome_parcel_{parcel:03d}.npy')
+                out_split1 = os.path.join(fine_parcel_dir, f'{subj_id}_split_1_connectome_parcel_{parcel:03d}.npy')
 
                 # Check if all required files already exist
                 files_exist = os.path.exists(out_split0) and os.path.exists(out_split1)
                 if save_coarse:
-                    coarse_out0 = os.path.join(coarse_parcel_dir, f'{subj_id}_split0_connectome_parcel_{parcel:03d}.npy')
-                    coarse_out1 = os.path.join(coarse_parcel_dir, f'{subj_id}_split1_connectome_parcel_{parcel:03d}.npy')
+                    coarse_out0 = os.path.join(coarse_parcel_dir, f'{subj_id}_split_0_connectome_parcel_{parcel:03d}.npy')
+                    coarse_out1 = os.path.join(coarse_parcel_dir, f'{subj_id}_split_1_connectome_parcel_{parcel:03d}.npy')
                     files_exist = files_exist and os.path.exists(coarse_out0) and os.path.exists(coarse_out1)
                 
                 if files_exist:
