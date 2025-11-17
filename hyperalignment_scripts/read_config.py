@@ -112,6 +112,9 @@ N_JOBS = _get_config_value('N_JOBS', 24, int)
 VERTICES_IN_BOUNDS = _get_config_value('VERTICES_IN_BOUNDS', 59412, int)
 N_PARCELS = _get_config_value('N_PARCELS', 360, int)
 
+# Pipeline mode control
+CONNECTOME_MODE = _get_config_value('CONNECTOME_MODE', 'both')
+
 DTSERIES_ROOT = _get_config_value('DTSERIES_ROOT', '../data/HBN_CIFTI/')
 PTSERIES_ROOT = _get_config_value('PTSERIES_ROOT', '../data/hyperalignment_input/glasser_ptseries/')
 BASE_OUTDIR = _get_config_value('BASE_OUTDIR', '../data/connectomes')

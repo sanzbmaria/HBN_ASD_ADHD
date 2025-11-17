@@ -8,6 +8,10 @@ N_JOBS=24
 VERTICES_IN_BOUNDS=59412
 N_PARCELS=360
 
+# Pipeline mode: full, split, or both
+# This controls what connectomes are built throughout the pipeline
+CONNECTOME_MODE="both"
+
 # Directory paths - these are INSIDE the Docker container
 # The host directory is mounted at /data in the container
 DTSERIES_ROOT="/data/HBN_CIFTI/"

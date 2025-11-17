@@ -25,13 +25,12 @@ RUN_PARCELLATION="${RUN_PARCELLATION:-yes}"
 RUN_BUILD_AA_CONNECTOMES="${RUN_BUILD_AA_CONNECTOMES:-yes}"
 RUN_HYPERALIGNMENT="${RUN_HYPERALIGNMENT:-yes}"
 RUN_CHA_CONNECTOMES="${RUN_CHA_CONNECTOMES:-yes}"
+RUN_SIMILARITY_MATRICES="${RUN_SIMILARITY_MATRICES:-yes}"
+RUN_IDM_RELIABILITY="${RUN_IDM_RELIABILITY:-yes}"
 
-# Connectome mode: full, split, or both
-AA_CONNECTOME_MODE="${AA_CONNECTOME_MODE:-both}"
-CHA_CONNECTOME_MODE="${CHA_CONNECTOME_MODE:-both}"
-
-# Hyperalignment mode
-HYPERALIGNMENT_MODE="${HYPERALIGNMENT_MODE:-full}"
+# Centralized connectome mode: full, split, or both
+# This applies to ALL stages (AA connectomes, hyperalignment, CHA connectomes, similarity matrices)
+CONNECTOME_MODE="${CONNECTOME_MODE:-both}"
 
 # ============================================================================
 # VALIDATION
@@ -50,9 +49,9 @@ if [ -z "${DATA_ROOT}" ]; then
     echo "  ./full_pipeline.sh"
     echo ""
     echo "Configuration can be overridden via environment variables:"
-    echo "  export N_JOBS=32              # Number of parallel jobs"
-    echo "  export AA_CONNECTOME_MODE=full  # Build only full AA connectomes"
-    echo "  export CHA_CONNECTOME_MODE=split # Build only split CHA connectomes"
+    echo "  export N_JOBS=32               # Number of parallel jobs"
+    echo "  export CONNECTOME_MODE=split   # Use 'full', 'split', or 'both' (default)"
+    echo "  export DTSERIES_ROOT=/data/CIFTI_DATA  # Path to your CIFTI files"
     echo "  ./full_pipeline.sh"
     exit 1
 fi
@@ -76,16 +75,19 @@ mkdir -p logs
 
 echo "Configuration:"
 echo "  Data Root: ${DATA_ROOT}"
+echo "  CIFTI Data: ${DTSERIES_ROOT}"
+echo "  Output Directory: ${BASE_OUTDIR}"
 echo "  N_JOBS: ${N_JOBS}"
 echo "  POOL_NUM: ${POOL_NUM}"
-echo "  AA Connectome Mode: ${AA_CONNECTOME_MODE}"
-echo "  CHA Connectome Mode: ${CHA_CONNECTOME_MODE}"
+echo "  Connectome Mode: ${CONNECTOME_MODE}"
 echo ""
 echo "Pipeline steps:"
 echo "  1. Parcellation: ${RUN_PARCELLATION}"
 echo "  2. Build AA Connectomes: ${RUN_BUILD_AA_CONNECTOMES}"
 echo "  3. Hyperalignment: ${RUN_HYPERALIGNMENT}"
 echo "  4. Build CHA Connectomes: ${RUN_CHA_CONNECTOMES}"
+echo "  5. Compute Similarity Matrices: ${RUN_SIMILARITY_MATRICES}"
+echo "  6. Compute IDM Reliability: ${RUN_IDM_RELIABILITY}"
 echo ""
 
 # ============================================================================
@@ -129,7 +131,7 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
     echo "================================================"
     echo ""
     echo "Building anatomical connectomes from parcellated data..."
-    echo "Mode: ${AA_CONNECTOME_MODE}"
+    echo "Mode: ${CONNECTOME_MODE}"
     echo ""
 
     docker run --rm \
@@ -138,9 +140,10 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
+        -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
-        python3 build_aa_connectomes.py --mode ${AA_CONNECTOME_MODE} \
+        python3 build_aa_connectomes.py --mode ${CONNECTOME_MODE} \
         2>&1 | tee logs/build_aa_connectomes.log
 
     echo ""
@@ -161,8 +164,18 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
     echo "================================================"
     echo ""
     echo "Running hyperalignment for all 360 parcels..."
+    echo "Mode: ${CONNECTOME_MODE}"
     echo "This is the most time-consuming step."
     echo ""
+
+    # Determine hyperalignment mode from CONNECTOME_MODE
+    # If CONNECTOME_MODE is 'split' or 'both', run split hyperalignment
+    # Otherwise run full hyperalignment
+    if [ "${CONNECTOME_MODE}" = "split" ] || [ "${CONNECTOME_MODE}" = "both" ]; then
+        HYPERALIGNMENT_MODE="split"
+    else
+        HYPERALIGNMENT_MODE="full"
+    fi
 
     for parcel in {1..360}; do
         echo "Processing parcel ${parcel}/360..."
@@ -172,6 +185,7 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
             -e N_JOBS=${N_JOBS} \
             -e POOL_NUM=${POOL_NUM} \
             -e BASE_OUTDIR="${BASE_OUTDIR}" \
+            -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
             -w /app/hyperalignment_scripts \
             ${IMAGE_NAME} \
             python run_hyperalignment.py ${parcel} ${HYPERALIGNMENT_MODE} \
@@ -196,16 +210,17 @@ if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
     echo "================================================"
     echo ""
     echo "Building connectomes from hyperaligned data..."
-    echo "Mode: ${CHA_CONNECTOME_MODE}"
+    echo "Mode: ${CONNECTOME_MODE}"
     echo ""
 
     docker run --rm \
         -v "${DATA_ROOT}":/data \
         -e N_JOBS=${N_JOBS} \
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
+        -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
-        python3 build_CHA_connectomes.py --mode ${CHA_CONNECTOME_MODE} \
+        python3 build_CHA_connectomes.py --mode ${CONNECTOME_MODE} \
         2>&1 | tee logs/build_cha_connectomes.log
 
     echo ""
@@ -213,6 +228,67 @@ if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
     echo ""
 else
     echo "Skipping CHA connectome building (RUN_CHA_CONNECTOMES=no)"
+    echo ""
+fi
+
+# ============================================================================
+# STEP 5: COMPUTE SIMILARITY MATRICES
+# ============================================================================
+
+if [ "${RUN_SIMILARITY_MATRICES}" = "yes" ]; then
+    echo "================================================"
+    echo "STEP 5: COMPUTE SIMILARITY MATRICES"
+    echo "================================================"
+    echo ""
+    echo "Computing inter-subject similarity matrices..."
+    echo "This computes ISC and covariance matrices for all 360 parcels."
+    echo ""
+
+    docker run --rm \
+        -v "${DATA_ROOT}":/data \
+        -e N_JOBS=${N_JOBS} \
+        -e BASE_OUTDIR="${BASE_OUTDIR}" \
+        -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -w /app/hyperalignment_scripts \
+        ${IMAGE_NAME} \
+        python3 connectome_similarity_matrices.py 1 batch \
+        2>&1 | tee logs/similarity_matrices.log
+
+    echo ""
+    echo "✓ Similarity matrices computed"
+    echo ""
+else
+    echo "Skipping similarity matrix computation (RUN_SIMILARITY_MATRICES=no)"
+    echo ""
+fi
+
+# ============================================================================
+# STEP 6: COMPUTE IDM RELIABILITY
+# ============================================================================
+
+if [ "${RUN_IDM_RELIABILITY}" = "yes" ]; then
+    echo "================================================"
+    echo "STEP 6: COMPUTE IDM RELIABILITY"
+    echo "================================================"
+    echo ""
+    echo "Computing split-half reliability of IDMs..."
+    echo ""
+
+    docker run --rm \
+        -v "${DATA_ROOT}":/data \
+        -e BASE_OUTDIR="${BASE_OUTDIR}" \
+        -e N_JOBS=${N_JOBS} \
+        -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -w /app/hyperalignment_scripts \
+        ${IMAGE_NAME} \
+        python3 idm_reliability.py \
+        2>&1 | tee logs/idm_reliability.log
+
+    echo ""
+    echo "✓ IDM reliability computed"
+    echo ""
+else
+    echo "Skipping IDM reliability computation (RUN_IDM_RELIABILITY=no)"
     echo ""
 fi
 
@@ -227,9 +303,11 @@ echo ""
 echo "All requested steps completed successfully!"
 echo ""
 echo "Results can be found in:"
-echo "  ${DATA_ROOT}/hyperalignment_input/glasser_ptseries/  (parcellated data)"
-echo "  ${DATA_ROOT}/connectomes/                             (AA connectomes)"
-echo "  ${DATA_ROOT}/connectomes/hyperalignment_output/      (hyperaligned data & CHA connectomes)"
+echo "  ${DATA_ROOT}/hyperalignment_input/glasser_ptseries/              (parcellated data)"
+echo "  ${DATA_ROOT}/connectomes/                                        (AA connectomes)"
+echo "  ${DATA_ROOT}/connectomes/hyperalignment_output/                  (hyperaligned data & CHA connectomes)"
+echo "  ${DATA_ROOT}/connectomes/similarity_matrices/                    (ISC & covariance matrices)"
+echo "  ${DATA_ROOT}/connectomes/reliability_results/                    (IDM reliability results)"
 echo ""
 echo "Logs saved to: ./logs/"
 echo ""
