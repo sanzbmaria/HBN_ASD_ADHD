@@ -10,8 +10,15 @@ set -e
 
 IMAGE_NAME="hyperalignment:latest"
 
-# Data directory (REQUIRED)
+# Data directory (REQUIRED - full path on host machine)
 DATA_ROOT="${DATA_ROOT:-}"
+
+# Configuration overrides (paths INSIDE Docker container)
+# These should start with /data/ since DATA_ROOT is mounted to /data in container
+DTSERIES_ROOT="${DTSERIES_ROOT:-/data/HBN_CIFTI/}"
+PTSERIES_ROOT="${PTSERIES_ROOT:-/data/hyperalignment_input/glasser_ptseries/}"
+BASE_OUTDIR="${BASE_OUTDIR:-/data/connectomes}"
+CONNECTOME_MODE="${CONNECTOME_MODE:-both}"
 
 # Test subjects (can be overridden)
 # Format: space-separated list of subject IDs
@@ -48,19 +55,21 @@ echo ""
 if [ -z "${DATA_ROOT}" ]; then
     echo "ERROR: DATA_ROOT environment variable not set"
     echo ""
-    echo "Usage:"
-    echo "  export DATA_ROOT=/path/to/your/data"
+    echo "Usage (simple - if your CIFTI files are in DATA_ROOT/HBN_CIFTI):"
+    echo "  export DATA_ROOT=/full/path/to/your/data"
     echo "  ./test_pipeline.sh"
     echo ""
-    echo "Or specify test subjects:"
-    echo "  export DATA_ROOT=/path/to/your/data"
-    echo "  export TEST_SUBJECTS=\"sub-NDARAA123 sub-NDARAA456 sub-NDARAA789\""
+    echo "Usage (custom CIFTI location):"
+    echo "  export DATA_ROOT=/full/path/to/your/data"
+    echo "  export DTSERIES_ROOT=/data/your_cifti_folder  # Path INSIDE container"
+    echo "  export CONNECTOME_MODE=split                  # or 'full' or 'both'"
     echo "  ./test_pipeline.sh"
     echo ""
-    echo "Or specify number of subjects to auto-select:"
-    echo "  export DATA_ROOT=/path/to/your/data"
-    echo "  export N_TEST_SUBJECTS=10"
-    echo "  ./test_pipeline.sh"
+    echo "IMPORTANT:"
+    echo "  - DATA_ROOT must be FULL path on your machine (e.g., /home/user/TestDocker/data)"
+    echo "  - DTSERIES_ROOT must be path INSIDE Docker (starts with /data/)"
+    echo "  - Your DATA_ROOT will be mounted to /data inside Docker"
+    echo ""
     exit 1
 fi
 
@@ -82,16 +91,28 @@ fi
 # DISCOVER AND SELECT TEST SUBJECTS
 # ============================================================================
 
-DTSERIES_DIR="${DATA_ROOT}/HBN_CIFTI"
+# Convert container path to host path for discovery
+# E.g., /data/HBN_CIFTI -> ${DATA_ROOT}/HBN_CIFTI
+DTSERIES_HOST_DIR="${DATA_ROOT}/${DTSERIES_ROOT#/data/}"
 
-if [ ! -d "${DTSERIES_DIR}" ]; then
-    echo "ERROR: dtseries directory not found: ${DTSERIES_DIR}"
+echo "Looking for CIFTI files in: ${DTSERIES_HOST_DIR}"
+
+if [ ! -d "${DTSERIES_HOST_DIR}" ]; then
+    echo "ERROR: CIFTI directory not found: ${DTSERIES_HOST_DIR}"
+    echo ""
+    echo "This is derived from:"
+    echo "  DATA_ROOT=${DATA_ROOT}"
+    echo "  DTSERIES_ROOT=${DTSERIES_ROOT} (container path)"
+    echo "  Host path: ${DTSERIES_HOST_DIR}"
+    echo ""
+    echo "Make sure your CIFTI files are in the right location, or set DTSERIES_ROOT correctly."
+    echo "DTSERIES_ROOT should be a path starting with /data/ (inside the container)."
     exit 1
 fi
 
 # Discover available subjects
 echo "Discovering available subjects..."
-ALL_SUBJECTS=$(ls "${DTSERIES_DIR}"/*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii 2>/dev/null | \
+ALL_SUBJECTS=$(ls "${DTSERIES_HOST_DIR}"/*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii 2>/dev/null | \
     xargs -n 1 basename | \
     sed 's/_task-rest.*//' | \
     sort -u)
@@ -99,8 +120,12 @@ ALL_SUBJECTS=$(ls "${DTSERIES_DIR}"/*_task-rest_run-1_nogsr_Atlas_s5.dtseries.ni
 N_AVAILABLE=$(echo "${ALL_SUBJECTS}" | wc -l | tr -d ' ')
 
 if [ ${N_AVAILABLE} -eq 0 ]; then
-    echo "ERROR: No subjects found in ${DTSERIES_DIR}"
+    echo "ERROR: No subjects found in ${DTSERIES_HOST_DIR}"
     echo "Expected files matching pattern: *_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
+    echo ""
+    echo "Check that:"
+    echo "  1. CIFTI files exist in ${DTSERIES_HOST_DIR}"
+    echo "  2. Files follow naming: sub-XXXXX_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
     exit 1
 fi
 
@@ -130,7 +155,7 @@ echo ""
 
 # Validate test subjects exist
 for subj in ${SUBJECTS_TO_TEST}; do
-    DTSERIES_FILE="${DTSERIES_DIR}/${subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
+    DTSERIES_FILE="${DTSERIES_HOST_DIR}/${subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
     if [ ! -f "${DTSERIES_FILE}" ]; then
         echo "ERROR: dtseries file not found for subject: ${subj}"
         echo "Expected: ${DTSERIES_FILE}"
@@ -146,14 +171,17 @@ echo "================================================"
 echo "Test Configuration"
 echo "================================================"
 echo "Docker image: ${IMAGE_NAME}"
-echo "Data root: ${DATA_ROOT}"
+echo "Data root (host): ${DATA_ROOT}"
+echo "CIFTI data (host): ${DTSERIES_HOST_DIR}"
+echo "CIFTI data (container): ${DTSERIES_ROOT}"
 echo "Test subjects (${N_TEST}): ${SUBJECTS_TO_TEST}"
 echo "Test parcels: ${TEST_PARCELS}"
+echo "Connectome mode: ${CONNECTOME_MODE}"
 echo ""
 echo "Pipeline steps:"
 echo "  1. Parcellation: ${RUN_PARCELLATION}"
 echo "  2. Build AA Connectomes: ${RUN_BUILD_AA_CONNECTOMES}"
-echo "  3. Hyperalignment: ${RUN_HYPERALIGNMENT} (mode: ${MODE})"
+echo "  3. Hyperalignment: ${RUN_HYPERALIGNMENT}"
 echo "  4. Build CHA Connectomes: ${RUN_CHA_CONNECTOMES}"
 echo ""
 echo "Resources:"
@@ -200,8 +228,8 @@ if [ "${RUN_PARCELLATION}" = "yes" ]; then
 
     docker run --rm \
         -v "${DATA_ROOT}":/data \
-        -e BASEDIR=/data/HBN_CIFTI \
-        -e OUTDIR=/data/hyperalignment_input/glasser_ptseries \
+        -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
+        -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
         -e N_JOBS=${N_JOBS} \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
@@ -240,10 +268,14 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
     docker run --rm \
         -v "${DATA_ROOT}":/data \
         -e N_JOBS=${N_JOBS} \
+        -e BASE_OUTDIR="${BASE_OUTDIR}" \
+        -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
+        -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
+        -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
         -e TEST_SUBJECTS_LIST="${SUBJECTS_TO_TEST}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
-        python3 build_aa_connectomes.py \
+        python3 build_aa_connectomes.py --mode ${CONNECTOME_MODE} \
         2>&1 | tee logs/test_build_aa_connectomes.log
 
     AA_EXIT=${PIPESTATUS[0]}
@@ -283,13 +315,21 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
         echo "Processing parcel ${parcel}..."
         echo "----------------------------------------"
 
+        # Determine hyperalignment mode from CONNECTOME_MODE
+        HYPER_MODE="full"
+        if [ "${CONNECTOME_MODE}" = "split" ] || [ "${CONNECTOME_MODE}" = "both" ]; then
+            HYPER_MODE="split"
+        fi
+
         docker run --rm \
             -v "${DATA_ROOT}":/data \
             -e N_JOBS=${N_JOBS} \
             -e POOL_NUM=${POOL_NUM} \
+            -e BASE_OUTDIR="${BASE_OUTDIR}" \
+            -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
             -w /app/hyperalignment_scripts \
             ${IMAGE_NAME} \
-            python run_hyperalignment.py ${parcel} ${MODE} \
+            python run_hyperalignment.py ${parcel} ${HYPER_MODE} \
             2>&1 | tee logs/test_hyperalignment_parcel_${parcel}.log
 
         EXIT_CODE=${PIPESTATUS[0]}
@@ -338,9 +378,11 @@ if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
     docker run --rm \
         -v "${DATA_ROOT}":/data \
         -e N_JOBS=${N_JOBS} \
+        -e BASE_OUTDIR="${BASE_OUTDIR}" \
+        -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
-        python3 build_CHA_connectomes.py \
+        python3 build_CHA_connectomes.py --mode ${CONNECTOME_MODE} \
         2>&1 | tee logs/test_build_cha_connectomes.log
 
     CHA_EXIT=${PIPESTATUS[0]}
