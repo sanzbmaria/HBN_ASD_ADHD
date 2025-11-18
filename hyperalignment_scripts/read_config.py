@@ -39,6 +39,14 @@ def read_config(config_path=None):
             if not line or line.startswith('#') or line.startswith('#!/'):
                 continue
 
+            # Strip inline comments (everything after # that appears after =)
+            # This handles cases like: KEY="value"  # comment
+            if '#' in line:
+                eq_pos = line.find('=')
+                comment_pos = line.find('#')
+                if eq_pos != -1 and comment_pos > eq_pos:
+                    line = line[:comment_pos].rstrip()
+
             # Match pattern: KEY=value or KEY="value"
             match = re.match(r'^([A-Z_]+)=(.+)$', line)
             if match:
