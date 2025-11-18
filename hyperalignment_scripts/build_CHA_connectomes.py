@@ -314,18 +314,19 @@ if __name__ == '__main__':
     joblist = []
     for s in subjects2run:
         if args.mode in ['full', 'both']:
-            joblist.append(delayed(lambda subj: build_cha_full_connectomes(subj, aligned_ts_dir, aligned_connectome_dir, n_parcels))(s))
+            joblist.append(delayed(build_cha_full_connectomes)(s, aligned_ts_dir, aligned_connectome_dir, n_parcels))
         if args.mode in ['split', 'both']:
-            joblist.append(delayed(lambda subj: build_cha_split_connectomes(subj, aligned_ts_dir, aligned_connectome_dir, n_parcels))(s))
+            joblist.append(delayed(build_cha_split_connectomes)(s, aligned_ts_dir, aligned_connectome_dir, n_parcels))
 
-    # Run in parallel with tqdm progress bar
-    with tqdm(total=len(joblist), desc="Building connectomes") as pbar:
-        def update(*args, **kwargs):
-            pbar.update(1)
-        with Parallel(n_jobs=utils.n_jobs) as parallel:
-            results = parallel(joblist)
-            for _ in results:
-                update()
+    if verbose:
+        print(f"Running {len(joblist)} jobs with {utils.n_jobs} parallel workers...")
+
+    # Run in parallel with tqdm progress bar showing completion
+    with tqdm(total=len(joblist), desc="Building CHA connectomes", unit="job") as pbar:
+        with Parallel(n_jobs=utils.n_jobs, verbose=0) as parallel:
+            for _ in parallel(joblist):
+                pbar.update(1)
+
     if verbose:
         print('Finished building connectomes!')
 # %%

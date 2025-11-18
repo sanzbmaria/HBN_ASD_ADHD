@@ -94,11 +94,8 @@ def build_full_connectomes(subj_id, save_coarse=False):
 
         connectome = 1 - cdist(subj_dss_all.T, subj_prc.T, 'correlation')
 
-        # Add progress bar for parcels
-        parcel_iter = tqdm(range(1, n_parcels+1), desc=f"Processing {subj_id} full connectomes", leave=False)
-
         parcels_done = 0
-        for i, parcel in enumerate(parcel_iter):
+        for i, parcel in enumerate(range(1, n_parcels+1)):
                 # Create parcel-specific directories BEFORE trying to save files
                 fine_parcel_dir = f'{base_outdir}/fine/parcel_{parcel:03d}'
                 os.makedirs(fine_parcel_dir, exist_ok=True)
@@ -150,20 +147,15 @@ def build_split_connectomes(subj_id, save_coarse=False):
         split = subj_prc.shape[0]//2
         split0_tpts = np.arange(0, split)
         split1_tpts = np.arange(split, subj_prc.shape[0])
-        
-        subj_dss0, subj_dss1 = subj_dss_all[split0_tpts], subj_dss_all[split1_tpts] 
+
+        subj_dss0, subj_dss1 = subj_dss_all[split0_tpts], subj_dss_all[split1_tpts]
         subj_prc0, subj_prc1 = subj_prc[split0_tpts], subj_prc[split1_tpts]
-        
+
         connectome0 = 1 - cdist(subj_dss0.T, subj_prc0.T, 'correlation')
         connectome1 = 1 - cdist(subj_dss1.T, subj_prc1.T, 'correlation')
 
-        
-        parcel_iter = tqdm(range(1, n_parcels+1), 
-                desc=f"Processing {subj_id} split connectomes", 
-                leave=False)
-
         parcels_done = 0
-        for i, parcel in enumerate(parcel_iter):
+        for i, parcel in enumerate(range(1, n_parcels+1)):
                 fine_parcel_dir = f'{base_outdir}/fine/parcel_{parcel:03d}'
                 os.makedirs(fine_parcel_dir, exist_ok=True)
                 
@@ -278,19 +270,22 @@ if __name__ == "__main__":
         exit(0)
     
     if verbose:
-        print(f"Processing {len(subjects_to_process)} incomplete subjects...")
+        print(f"Processing {len(subjects_to_process)} subjects...")
 
-    for s in tqdm(subjects_to_process, desc="Setting up jobs"):
+    for s in subjects_to_process:
         if args.mode in ['full', 'both']:
             joblist.append(delayed(build_full_connectomes)(s, save_coarse=True))
         if args.mode in ['split', 'both']:
             joblist.append(delayed(build_split_connectomes)(s, save_coarse=True))
-    
+
     if verbose:
         print(f"Running {len(joblist)} jobs with {n_jobs} parallel workers...")
-    
-    with Parallel(n_jobs=n_jobs, verbose=1) as parallel:
-        parallel(joblist)
+
+    # Use tqdm to show overall progress as subjects complete
+    with tqdm(total=len(joblist), desc="Building AA connectomes", unit="job") as pbar:
+        with Parallel(n_jobs=n_jobs, verbose=0) as parallel:
+            for _ in parallel(joblist):
+                pbar.update(1)
                    
     if verbose:
         print("All connectome processing completed!")
