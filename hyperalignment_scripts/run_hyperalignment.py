@@ -432,6 +432,54 @@ def get_train_test_subjects(csv_path=None):
     if csv_path is None or not os.path.exists(csv_path):
         if csv_path:
             print("WARNING: CSV file not found: {}".format(csv_path))
+
+        # Try to use METADATA_EXCEL with split column if available
+        use_metadata = os.environ.get('USE_METADATA_FILTER', '0') == '1'
+        metadata_path = os.environ.get('METADATA_EXCEL', '')
+
+        if use_metadata and metadata_path and os.path.exists(metadata_path):
+            print("Using train/test split from metadata file: {}".format(metadata_path))
+            try:
+                import pandas as pd
+                from read_config import SUBJECT_ID_COL, SPLIT_COL
+
+                # Load metadata file
+                if metadata_path.endswith('.csv'):
+                    df = pd.read_csv(metadata_path)
+                else:
+                    df = pd.read_excel(metadata_path)
+
+                print("Loaded {} subjects from metadata".format(len(df)))
+
+                # Check if split column exists
+                if SPLIT_COL in df.columns:
+                    print("Using '{}' column for train/test split".format(SPLIT_COL))
+
+                    # Get train and test subjects
+                    train_df = df[df[SPLIT_COL].str.lower() == 'train']
+                    test_df = df[df[SPLIT_COL].str.lower() == 'test']
+
+                    # Format subject IDs
+                    def format_id(sid):
+                        sid = str(sid).strip()
+                        if not sid.startswith('sub-'):
+                            sid = 'sub-' + sid
+                        return sid
+
+                    train_subjects = [format_id(s) for s in train_df[SUBJECT_ID_COL].values]
+                    test_subjects = [format_id(s) for s in test_df[SUBJECT_ID_COL].values]
+
+                    print("From metadata split column:")
+                    print("  Training: {} subjects".format(len(train_subjects)))
+                    print("  Test: {} subjects".format(len(test_subjects)))
+
+                    return train_subjects, test_subjects
+                else:
+                    print("Warning: '{}' column not found in metadata, falling back to random split".format(SPLIT_COL))
+            except Exception as e:
+                print("Error reading metadata file: {}, falling back to random split".format(e))
+
+        # Fall back to random split
         print("Using random split of discovered subjects (respects metadata filtering)")
         # Use utils._discover_subject_ids() which respects metadata filtering
         all_subjects = utils._discover_subject_ids()
