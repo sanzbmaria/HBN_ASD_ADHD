@@ -10,7 +10,7 @@ from read_config import (
     POOL_NUM, N_JOBS, VERTICES_IN_BOUNDS, N_PARCELS,
     DTSERIES_ROOT, PTSERIES_ROOT, BASE_OUTDIR, TEMPORARY_OUTDIR,
     PARCELLATION_FILE, DTSERIES_FILENAME_TEMPLATE, DTSERIES_FILENAME_PATTERN,
-    LOGDIR
+    LOGDIR, METADATA_EXCEL, SUBJECT_ID_COL
 )
 
 # Legacy variables for backwards compatibility
@@ -79,8 +79,8 @@ parcellation = get_glasser_atlas_file()
 
 def load_metadata_subjects():
     """
-    Load subject IDs from METADATA_EXCEL file.
-    Returns all subjects in the Excel file (regardless of train/test split).
+    Load subject IDs from METADATA_EXCEL file (supports both CSV and Excel).
+    Returns all subjects in the file (regardless of train/test split).
     Set USE_METADATA_FILTER=1 environment variable to enable filtering.
     """
     use_filter = os.environ.get('USE_METADATA_FILTER', '0') == '1'
@@ -94,13 +94,18 @@ def load_metadata_subjects():
 
     try:
         import pandas as pd
-        df = pd.read_excel(METADATA_EXCEL)
+
+        # Auto-detect file format based on extension
+        if METADATA_EXCEL.endswith('.csv'):
+            df = pd.read_csv(METADATA_EXCEL)
+        else:
+            df = pd.read_excel(METADATA_EXCEL)
 
         # Normalize subject IDs to sub-XXXXX format
         subjects = df[SUBJECT_ID_COL].astype(str).str.strip()
         subjects = subjects.apply(lambda x: x if x.startswith("sub-") else f"sub-{x}")
 
-        print(f"Loaded {len(subjects)} subjects from metadata Excel")
+        print(f"Loaded {len(subjects)} subjects from metadata file")
         return sorted(set(subjects.tolist()))
     except Exception as e:
         print(f"Warning: Error reading METADATA_EXCEL: {e}, skipping metadata filtering")
