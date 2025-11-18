@@ -33,6 +33,21 @@ RUN_IDM_RELIABILITY="${RUN_IDM_RELIABILITY:-yes}"
 # This applies to ALL stages (AA connectomes, hyperalignment, CHA connectomes, similarity matrices)
 CONNECTOME_MODE="${CONNECTOME_MODE:-both}"
 
+# IMPORTANT: Hyperalignment training always requires FULL connectomes,
+# even when doing split-half reliability analysis (matching Erica Bush's original implementation).
+# Automatically adjust 'split' to 'both' to ensure hyperalignment works correctly.
+ORIGINAL_MODE="${CONNECTOME_MODE}"
+if [ "${CONNECTOME_MODE}" = "split" ]; then
+    echo ""
+    echo "======================================================================"
+    echo "IMPORTANT: Hyperalignment training requires FULL connectomes"
+    echo "Automatically changing CONNECTOME_MODE from 'split' to 'both'"
+    echo "(This matches Erica Bush's original implementation)"
+    echo "======================================================================"
+    echo ""
+    CONNECTOME_MODE="both"
+fi
+
 # ============================================================================
 # VALIDATION
 # ============================================================================

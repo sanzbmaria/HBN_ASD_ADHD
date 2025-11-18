@@ -216,10 +216,24 @@ if __name__ == "__main__":
 
     verbose = True
 
+    # IMPORTANT: Hyperalignment training always requires FULL connectomes,
+    # even when doing split-half reliability analysis (matching Erica Bush's original implementation).
+    # If user specified 'split', automatically build 'both' to ensure hyperalignment works.
+    original_mode = args.mode
+    if args.mode == 'split':
+        print("\n" + "="*70)
+        print("IMPORTANT: Hyperalignment training requires FULL connectomes")
+        print("Automatically building BOTH full and split connectomes")
+        print("(This matches Erica Bush's original implementation)")
+        print("="*70 + "\n")
+        args.mode = 'both'
+
     if verbose:
         print(f"Building AA connectomes (mode: {args.mode})")
+        if original_mode != args.mode:
+            print(f"  (requested mode: {original_mode}, adjusted to: {args.mode})")
         print(f"Output directory: {base_outdir}")
-    
+
     # Use utils to find subjects (GSR-aware)
     all_subjects = utils._discover_subject_ids()
     
