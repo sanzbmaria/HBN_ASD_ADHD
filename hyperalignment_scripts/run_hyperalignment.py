@@ -381,7 +381,7 @@ def format_subject_id(subject_id_raw):
     return subject_id
 
 
-def get_train_test_subjects(csv_path='../data/diagnosis_summary/matched_subjects_diagnosis_mini.csv'):
+def get_train_test_subjects(csv_path=None):
     """
     Get training and test subjects from freesurfer CSV file.
 
@@ -426,10 +426,11 @@ def get_train_test_subjects(csv_path='../data/diagnosis_summary/matched_subjects
 
         return train_subjects, test_subjects
 
-    # Check if CSV exists
-    if not os.path.exists(csv_path):
-        print("WARNING: CSV file not found: {}".format(csv_path))
-        print("Falling back to random split of discovered subjects")
+    # Check if CSV path provided and exists
+    if csv_path is None or not os.path.exists(csv_path):
+        if csv_path:
+            print("WARNING: CSV file not found: {}".format(csv_path))
+        print("Using random split of discovered subjects (respects metadata filtering)")
         # Use utils._discover_subject_ids() which respects metadata filtering
         all_subjects = utils._discover_subject_ids()
         print("Found {} total subjects".format(len(all_subjects)))
@@ -558,10 +559,22 @@ if __name__ == '__main__':
     # Get train/test subjects
     train_subjects, test_subjects = get_train_test_subjects()
 
-    # Filter to subjects with available data
-    available_files = glob.glob(os.path.join(
-        train_connectome_dir, '*_full_connectome_parcel_*.npy'))
-    available_subjects = [os.path.basename(f).split('_full_connectome')[0]
+    # Filter to subjects with available data based on mode
+    # Check for the appropriate connectome files depending on mode
+    if mode == 'full':
+        pattern = os.path.join(train_connectome_dir, '*_full_connectome_parcel_{:03d}.npy'.format(parcel))
+        split_str = '_full_connectome'
+    elif mode == 'split':
+        # For split mode, check for split_0 files
+        pattern = os.path.join(train_connectome_dir, '*_split_0_connectome_parcel_{:03d}.npy'.format(parcel))
+        split_str = '_split_0_connectome'
+    else:  # mode == 'both'
+        # Check for either full or split files
+        pattern = os.path.join(train_connectome_dir, '*_split_0_connectome_parcel_{:03d}.npy'.format(parcel))
+        split_str = '_split_0_connectome'
+
+    available_files = glob.glob(pattern)
+    available_subjects = [os.path.basename(f).split(split_str)[0]
                          for f in available_files]
 
     train_subjects = [s for s in train_subjects if s in available_subjects]
@@ -573,6 +586,7 @@ if __name__ == '__main__':
 
     if len(train_subjects) == 0 or len(test_subjects) == 0:
         print("\nERROR: No subjects with available connectome data found")
+        print("Pattern searched: {}".format(pattern))
         print("Available files: {}".format(len(available_files)))
         if len(available_files) > 0:
             print("Sample file: {}".format(available_files[0]))
