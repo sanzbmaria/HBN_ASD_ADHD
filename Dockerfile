@@ -69,7 +69,3 @@ RUN mkdir -p /data/HBN_CIFTI \
 
 # Default command
 CMD ["/bin/bash"]
-
-
-                                                                                                                                                                            73,0-1        Bot
-                                                                                                                                                                            1,1           Top
