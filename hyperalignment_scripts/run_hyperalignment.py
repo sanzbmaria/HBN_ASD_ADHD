@@ -127,33 +127,6 @@ def prep_cnx_split(args):
     ds_train.fa['seeds'] = np.where(glasser_atlas == current_parcel)[0]
     return ds_train
 
-# Fallback: Load full or split_0 connectome (tries full first, falls back to split_0)
-def prep_cnx_auto(args):
-    """Load full connectome if available, otherwise use split_0 as fallback"""
-    subject, connectome_dir, current_parcel = args
-
-    # Try full connectome first
-    fn_full = connectome_dir + '/{a}_full_connectome_parcel_{i:03d}.npy'.format(a=subject, i=current_parcel)
-    if os.path.exists(fn_full):
-        d = np.nan_to_num(zscore(np.load(fn_full)))
-    else:
-        # Fallback to split_0 connectome
-        fn_split = connectome_dir + '/{a}_split_0_connectome_parcel_{i:03d}.npy'.format(a=subject, i=current_parcel)
-        if not os.path.exists(fn_split):
-            raise FileNotFoundError("Neither full nor split connectome found for {}: tried {} and {}".format(
-                subject, fn_full, fn_split))
-        print("WARNING: Using split_0 connectome for training subject {} (full connectome not found)".format(subject))
-        d = np.nan_to_num(zscore(np.load(fn_split)))
-
-    # Suppress warnings during Dataset creation
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        ds_train = Dataset(d)
-
-    ds_train.sa['targets'] = np.arange(1, N_PARCELS)
-    ds_train.fa['seeds'] = np.where(glasser_atlas == current_parcel)[0]
-    return ds_train
-
 # Simplified dtseries loader: always load GSR dtseries (uses top-level nib)
 def load_dtseries_data(subj_id, parcel=None):
     """Load dtseries data from the GSR dataset (Python 2 version)."""
@@ -232,9 +205,9 @@ def drive_hyperalignment_full(train_subjects, test_subjects, connectome_dir, map
     print("Loading training connectomes...")
     try:
         # Prepare arguments with parcel info
-        # Use prep_cnx_auto which tries full first, falls back to split_0
+        # Use full connectomes for training (matching Erica Bush's implementation)
         train_args = [(subject, connectome_dir, current_parcel) for subject in train_subjects]
-        train_cnx = pool.map(prep_cnx_auto, train_args)
+        train_cnx = pool.map(prep_cnx, train_args)
         print("Successfully loaded {} training connectomes".format(len(train_cnx)))
     except Exception as e:
         print("Error loading training connectomes: {}".format(e))
@@ -257,8 +230,8 @@ def drive_hyperalignment_full(train_subjects, test_subjects, connectome_dir, map
     print("Loading test connectomes and applying mappers...")
     try:
         test_args = [(subject, connectome_dir, current_parcel) for subject in test_subjects]
-        # Use auto fallback for test subjects too
-        test_cnx = pool.map(prep_cnx_auto, test_args)
+        # Use full connectomes for test subjects (matching Erica Bush's implementation)
+        test_cnx = pool.map(prep_cnx, test_args)
         mappers = ha(test_cnx)  # get mappers for test subjects
         
         # Prepare file paths
@@ -290,9 +263,9 @@ def drive_hyperalignment_split(train_subjects, test_subjects, connectome_dir, ma
     
     print("Loading training connectomes...")
     try:
-        # Use prep_cnx_auto which tries full first, falls back to split_0
+        # Use full connectomes for training (matching Erica Bush's implementation)
         train_args = [(subject, connectome_dir, current_parcel) for subject in train_subjects]
-        train_cnx = pool.map(prep_cnx_auto, train_args)
+        train_cnx = pool.map(prep_cnx, train_args)
         print("Successfully loaded {} training connectomes".format(len(train_cnx)))
     except Exception as e:
         print("Error loading training connectomes: {}".format(e))
