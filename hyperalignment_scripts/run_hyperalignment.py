@@ -111,7 +111,7 @@ def prep_cnx(args):
 # NEW: Loads in pre-computed split-half connectomes for each subject, each parcel, and formats for hyperalignment.
 def prep_cnx_split(args):
     subject, split, connectome_dir, current_parcel = args
-    fn = connectome_dir + '/{a}_split{split}_connectome_parcel_{i:03d}.npy'.format(a=subject, split=split, i=current_parcel)
+    fn = connectome_dir + '/{a}_split_{split}_connectome_parcel_{i:03d}.npy'.format(a=subject, split=split, i=current_parcel)
     if not os.path.exists(fn):
         raise FileNotFoundError("Split connectome file not found: {}".format(fn))
     
@@ -291,9 +291,9 @@ def drive_hyperalignment_split(train_subjects, test_subjects, connectome_dir, ma
         # Check if split connectome files exist, if not use regular connectomes
         # Debug: print the exact file paths being checked
         for subject in test_subjects[:3]:
-            check_path = os.path.join(connectome_dir, '{a}_split0_connectome_parcel_{i:03d}.npy'.format(a=subject, i=current_parcel))
+            check_path = os.path.join(connectome_dir, '{a}_split_0_connectome_parcel_{i:03d}.npy'.format(a=subject, i=current_parcel))
             print("Checking for split connectome file:", check_path, "Exists:", os.path.exists(check_path))
-        split_files_exist = all(os.path.exists(os.path.join(connectome_dir, '{a}_split0_connectome_parcel_{i:03d}.npy'.format(a=subject, i=current_parcel))) 
+        split_files_exist = all(os.path.exists(os.path.join(connectome_dir, '{a}_split_0_connectome_parcel_{i:03d}.npy'.format(a=subject, i=current_parcel)))
                               for subject in test_subjects[:3])  # Check first few subjects
         if split_files_exist:
             print("Using pre-computed split connectomes...")
