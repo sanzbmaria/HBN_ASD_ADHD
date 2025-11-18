@@ -58,6 +58,12 @@ def read_config(config_path=None):
                    (value.startswith("'") and value.endswith("'")):
                     value = value[1:-1]
 
+                # Handle bash variable substitution: ${VAR:-default}
+                # This extracts the default value from bash syntax
+                if value.startswith('${') and ':-' in value and value.endswith('}'):
+                    # Extract default value from ${VAR:-default}
+                    value = value.split(':-')[1].rstrip('}')
+
                 # Try to convert to int if it looks like a number
                 if value.isdigit():
                     value = int(value)
