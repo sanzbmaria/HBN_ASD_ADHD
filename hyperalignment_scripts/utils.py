@@ -77,17 +77,56 @@ def get_glasser_atlas_file():
 parcellation = get_glasser_atlas_file()
 
 
+def load_metadata_subjects():
+    """
+    Load subject IDs from METADATA_EXCEL file.
+    Returns all subjects in the Excel file (regardless of train/test split).
+    Set USE_METADATA_FILTER=1 environment variable to enable filtering.
+    """
+    use_filter = os.environ.get('USE_METADATA_FILTER', '0') == '1'
+
+    if not use_filter:
+        return None  # No filtering
+
+    if not os.path.exists(METADATA_EXCEL):
+        print(f"Warning: METADATA_EXCEL not found at {METADATA_EXCEL}, skipping metadata filtering")
+        return None
+
+    try:
+        import pandas as pd
+        df = pd.read_excel(METADATA_EXCEL)
+
+        # Normalize subject IDs to sub-XXXXX format
+        subjects = df[SUBJECT_ID_COL].astype(str).str.strip()
+        subjects = subjects.apply(lambda x: x if x.startswith("sub-") else f"sub-{x}")
+
+        print(f"Loaded {len(subjects)} subjects from metadata Excel")
+        return sorted(set(subjects.tolist()))
+    except Exception as e:
+        print(f"Warning: Error reading METADATA_EXCEL: {e}, skipping metadata filtering")
+        return None
+
 def _discover_subject_ids():
     """Find IDs with files like <ID>_task-rest_run-1__s5.dtseries.nii or <ID>_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"""
     # Use the configurable discovery glob pattern defined at the top of the file
     pattern = os.path.join(DTSERIES_ROOT, DTSERIES_FILENAME_PATTERN)
-    
+
     ids = []
     for fp in glob.glob(pattern):
         name = os.path.basename(fp)
         sid = name.split("_task-rest")[0]
         ids.append(sid)
-    return sorted(set(ids))
+
+    discovered_ids = sorted(set(ids))
+
+    # Apply metadata filtering if enabled
+    metadata_subjects = load_metadata_subjects()
+    if metadata_subjects is not None:
+        filtered_ids = [sid for sid in discovered_ids if sid in metadata_subjects]
+        print(f"Filtered: {len(discovered_ids)} discovered -> {len(filtered_ids)} in metadata")
+        return filtered_ids
+
+    return discovered_ids
 
 def get_HA_train_subjects():
     ids = _discover_subject_ids()
