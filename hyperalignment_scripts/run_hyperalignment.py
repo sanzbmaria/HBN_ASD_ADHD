@@ -71,6 +71,7 @@ from read_config import (
     PARCELLATION_FILE, DTSERIES_FILENAME_TEMPLATE, DTSERIES_FILENAME_PATTERN,
     pool_num, n_jobs  # lowercase aliases for backward compatibility
 )
+import utils
 
 # For backwards compatibility with existing code
 BASE_CONNECTOME_DIR = BASE_OUTDIR
@@ -429,7 +430,8 @@ def get_train_test_subjects(csv_path='../data/diagnosis_summary/matched_subjects
     if not os.path.exists(csv_path):
         print("WARNING: CSV file not found: {}".format(csv_path))
         print("Falling back to random split of discovered subjects")
-        all_subjects = discover_subject_ids()
+        # Use utils._discover_subject_ids() which respects metadata filtering
+        all_subjects = utils._discover_subject_ids()
         print("Found {} total subjects".format(len(all_subjects)))
 
         random.seed(42)
@@ -485,8 +487,8 @@ def get_train_test_subjects(csv_path='../data/diagnosis_summary/matched_subjects
             formatted = train_subjects[i]
             print("  {} -> {}".format(raw, formatted))
 
-    # Get available subjects from filesystem
-    available_subjects = discover_subject_ids()
+    # Get available subjects from filesystem (respects metadata filtering)
+    available_subjects = utils._discover_subject_ids()
     print("\nAvailable in filesystem: {}".format(len(available_subjects)))
 
     # Filter to subjects with available data
