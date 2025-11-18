@@ -130,6 +130,12 @@ echo "  Output Directory: ${BASE_OUTDIR}"
 echo "  N_JOBS: ${N_JOBS}"
 echo "  POOL_NUM: ${POOL_NUM}"
 echo "  Connectome Mode: ${CONNECTOME_MODE}"
+if [ "${USE_METADATA_FILTER:-0}" = "1" ]; then
+    echo "  Metadata Filtering: ENABLED"
+    echo "  Metadata File: ${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}"
+else
+    echo "  Metadata Filtering: DISABLED"
+fi
 echo ""
 echo "Pipeline steps:"
 echo "  1. Parcellation: ${RUN_PARCELLATION}"
@@ -158,6 +164,8 @@ if [ "${RUN_PARCELLATION}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         bash apply_parcellation.sh \
@@ -191,6 +199,8 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 build_aa_connectomes.py --mode ${CONNECTOME_MODE} \
@@ -236,6 +246,8 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
             -e POOL_NUM=${POOL_NUM} \
             -e BASE_OUTDIR="${BASE_OUTDIR}" \
             -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+            -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+            -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
             -w /app/hyperalignment_scripts \
             ${IMAGE_NAME} \
             python run_hyperalignment.py ${parcel} ${HYPERALIGNMENT_MODE} \
@@ -268,6 +280,8 @@ if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 build_CHA_connectomes.py --mode ${CONNECTOME_MODE} \
@@ -299,6 +313,8 @@ if [ "${RUN_SIMILARITY_MATRICES}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 connectome_similarity_matrices.py 1 batch \
@@ -329,6 +345,8 @@ if [ "${RUN_IDM_RELIABILITY}" = "yes" ]; then
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e N_JOBS=${N_JOBS} \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 idm_reliability.py \
