@@ -5,7 +5,6 @@
 import numpy as np
 import hyperalignment_scripts.utils as utils
 import os, sys, glob
-from tqdm import tqdm
 from scipy.stats import zscore
 from scipy.spatial.distance import pdist, cdist, squareform
 from joblib import Parallel, delayed
@@ -320,13 +319,12 @@ if __name__ == '__main__':
 
     if verbose:
         print(f"Running {len(joblist)} jobs with {utils.n_jobs} parallel workers...")
+        print(f"Building CHA connectomes: 0/{len(joblist)} completed")
 
-    # Run in parallel with tqdm progress bar showing completion
-    with tqdm(total=len(joblist), desc="Building CHA connectomes", unit="job") as pbar:
-        with Parallel(n_jobs=utils.n_jobs, verbose=0) as parallel:
-            for _ in parallel(joblist):
-                pbar.update(1)
+    # Run jobs in parallel with joblib's built-in progress
+    Parallel(n_jobs=utils.n_jobs, verbose=10)(joblist)
 
     if verbose:
+        print(f"\nBuilding CHA connectomes: {len(joblist)}/{len(joblist)} completed")
         print('Finished building connectomes!')
 # %%

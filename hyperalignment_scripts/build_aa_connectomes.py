@@ -16,7 +16,6 @@ from scipy.spatial.distance import cdist
 import utils as utils
 from joblib import Parallel, delayed
 import multiprocessing as mp
-from tqdm import tqdm
 import csv
 from datetime import datetime
 import pandas as pd
@@ -294,14 +293,13 @@ if __name__ == "__main__":
 
     if verbose:
         print(f"Running {len(joblist)} jobs with {n_jobs} parallel workers...")
+        print(f"Building AA connectomes: 0/{len(joblist)} completed")
 
-    # Use tqdm to show overall progress as subjects complete
-    with tqdm(total=len(joblist), desc="Building AA connectomes", unit="job") as pbar:
-        with Parallel(n_jobs=n_jobs, verbose=0) as parallel:
-            for _ in parallel(joblist):
-                pbar.update(1)
-                   
+    # Run jobs in parallel with joblib's built-in progress
+    Parallel(n_jobs=n_jobs, verbose=10)(joblist)
+
     if verbose:
+        print(f"\nBuilding AA connectomes: {len(joblist)}/{len(joblist)} completed")
         print("All connectome processing completed!")
         print(f"Results saved to: {base_outdir}")
 
