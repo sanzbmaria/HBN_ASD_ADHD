@@ -134,6 +134,53 @@ if __name__ == '__main__':
     df_clean.to_csv(output_file, index=False)
 
     print(f"\nResults saved to: {output_file}")
-    print(f"\nMean reliability: {df_clean['r'].mean():.4f}")
-    print(f"Range: [{df_clean['r'].min():.4f}, {df_clean['r'].max():.4f}]")
-    print(f"Significant results (p<0.05): {(df_clean['p'] < 0.05).sum()}/{len(df_clean)}")
+    print(f"\nOverall statistics:")
+    print(f"  Mean reliability: {df_clean['r'].mean():.4f}")
+    print(f"  Range: [{df_clean['r'].min():.4f}, {df_clean['r'].max():.4f}]")
+    print(f"  Significant results (p<0.05): {(df_clean['p'] < 0.05).sum()}/{len(df_clean)}")
+
+    # Print detailed breakdown by alignment and scale
+    print("\n" + "="*60)
+    print("IDM RELIABILITY SUMMARY")
+    print("="*60)
+
+    # Calculate means for each combination
+    for alignment in ['aa', 'cha']:
+        for scale in ['coarse', 'fine']:
+            subset = df_clean[(df_clean['align'] == alignment) & (df_clean['scale'] == scale)]
+            if len(subset) > 0:
+                mean_r = subset['r'].mean()
+                std_r = subset['r'].std()
+                min_r = subset['r'].min()
+                max_r = subset['r'].max()
+                n_parcels = len(subset)
+                n_sig = (subset['p'] < 0.05).sum()
+
+                print(f"\n{alignment.upper()} - {scale.capitalize()}:")
+                print(f"  Mean reliability (r): {mean_r:.4f} ± {std_r:.4f}")
+                print(f"  Range: [{min_r:.4f}, {max_r:.4f}]")
+                print(f"  N parcels: {n_parcels}")
+                print(f"  Significant (p<0.05): {n_sig}/{n_parcels} ({100*n_sig/n_parcels:.1f}%)")
+
+    # Overall comparison
+    print("\n" + "-"*60)
+    print("OVERALL COMPARISON")
+    print("-"*60)
+
+    # AA vs CHA
+    aa_mean = df_clean[df_clean['align'] == 'aa']['r'].mean()
+    cha_mean = df_clean[df_clean['align'] == 'cha']['r'].mean()
+    print(f"\nAlignment method:")
+    print(f"  AA (anatomical):          {aa_mean:.4f}")
+    print(f"  CHA (hyperalignment):     {cha_mean:.4f}")
+    print(f"  CHA improvement:          {cha_mean - aa_mean:+.4f} ({100*(cha_mean-aa_mean)/aa_mean:+.1f}%)")
+
+    # Coarse vs Fine
+    coarse_mean = df_clean[df_clean['scale'] == 'coarse']['r'].mean()
+    fine_mean = df_clean[df_clean['scale'] == 'fine']['r'].mean()
+    print(f"\nScale:")
+    print(f"  Coarse:                   {coarse_mean:.4f}")
+    print(f"  Fine:                     {fine_mean:.4f}")
+    print(f"  Fine advantage:           {fine_mean - coarse_mean:+.4f} ({100*(fine_mean-coarse_mean)/coarse_mean:+.1f}%)")
+
+    print("\n" + "="*60)
