@@ -89,29 +89,27 @@ if __name__ == '__main__':
 
     print(f"Looking for similarity matrices in: {similarity_dir}")
 
+    # Build job list for ALL parcels (matching Erica's original)
+    # This ensures parcel numbers are always present, even if files are missing (will be NaN)
     for a in ['aa','cha']:
         for s in ['coarse','fine']:
             for p in range(1,361):
                 fn0 = f'{similarity_dir}/{a}_{s}_split0_parcel_{p:03d}_ISC.csv'
                 fn1 = f'{similarity_dir}/{a}_{s}_split1_parcel_{p:03d}_ISC.csv'
 
-                # Check if both files exist
-                if os.path.exists(fn0) and os.path.exists(fn1):
-                    joblist.append(delayed(run_reliability)(fn0, fn1))
-                    align_vals.append(a)
-                    scale_vals.append(s)
-                    parcel_vals.append(p)
-                else:
-                    if not os.path.exists(fn0):
-                        print(f"Warning: Missing {fn0}")
-                    if not os.path.exists(fn1):
-                        print(f"Warning: Missing {fn1}")
+                # Always add to job list (like Erica's original)
+                # Missing files will result in NaN which we keep in final output
+                joblist.append(delayed(run_reliability)(fn0, fn1))
+                align_vals.append(a)
+                scale_vals.append(s)
+                parcel_vals.append(p)
 
+    # Sanity check: should have 1440 jobs (2 alignments × 2 scales × 360 parcels)
     if len(joblist) == 0:
-        print("ERROR: No split similarity matrices found!")
-        print(f"Expected files like: {similarity_dir}/aa_coarse_split0_parcel_001_ISC.csv")
-        print("Make sure you've run connectome_similarity_matrices.py first")
+        print("ERROR: No jobs created - this should not happen!")
         sys.exit(1)
+
+    print(f"Total jobs to run: {len(joblist)} (expecting 1440)")
 
     print(f"Running {len(joblist)} reliability analyses with {n_jobs} jobs...")
 
@@ -125,19 +123,22 @@ if __name__ == '__main__':
                       'p':results[:,1],
                       'z':results[:,2]})
 
-    # Filter out NaN results
-    df_clean = df.dropna(subset=['r'])
-    if len(df_clean) < len(df):
-        print(f"Warning: {len(df_clean)} analyses failed")
-
+    # Save ALL results including NaN (matching Erica's original)
     output_file = os.path.join(results_dir, 'reliability_results.csv')
-    df_clean.to_csv(output_file, index=False)
+    df.to_csv(output_file, index=False)
 
     print(f"\nResults saved to: {output_file}")
-    print(f"\nOverall statistics:")
-    print(f"  Mean reliability: {df_clean['r'].mean():.4f}")
-    print(f"  Range: [{df_clean['r'].min():.4f}, {df_clean['r'].max():.4f}]")
-    print(f"  Significant results (p<0.05): {(df_clean['p'] < 0.05).sum()}/{len(df_clean)}")
+
+    # For statistics, filter out NaN
+    df_valid = df.dropna(subset=['r'])
+    n_failed = len(df) - len(df_valid)
+    if n_failed > 0:
+        print(f"Warning: {n_failed}/{len(df)} analyses failed (NaN in output)")
+
+    print(f"\nOverall statistics (valid results only):")
+    print(f"  Mean reliability: {df_valid['r'].mean():.4f}")
+    print(f"  Range: [{df_valid['r'].min():.4f}, {df_valid['r'].max():.4f}]")
+    print(f"  Significant results (p<0.05): {(df_valid['p'] < 0.05).sum()}/{len(df_valid)}")
 
     # Print detailed breakdown by alignment and scale
     print("\n" + "="*60)
@@ -147,7 +148,7 @@ if __name__ == '__main__':
     # Calculate means for each combination
     for alignment in ['aa', 'cha']:
         for scale in ['coarse', 'fine']:
-            subset = df_clean[(df_clean['align'] == alignment) & (df_clean['scale'] == scale)]
+            subset = df_valid[(df_valid['align'] == alignment) & (df_valid['scale'] == scale)]
             if len(subset) > 0:
                 mean_r = subset['r'].mean()
                 std_r = subset['r'].std()
@@ -168,16 +169,16 @@ if __name__ == '__main__':
     print("-"*60)
 
     # AA vs CHA
-    aa_mean = df_clean[df_clean['align'] == 'aa']['r'].mean()
-    cha_mean = df_clean[df_clean['align'] == 'cha']['r'].mean()
+    aa_mean = df_valid[df_valid['align'] == 'aa']['r'].mean()
+    cha_mean = df_valid[df_valid['align'] == 'cha']['r'].mean()
     print(f"\nAlignment method:")
     print(f"  AA (anatomical):          {aa_mean:.4f}")
     print(f"  CHA (hyperalignment):     {cha_mean:.4f}")
     print(f"  CHA improvement:          {cha_mean - aa_mean:+.4f} ({100*(cha_mean-aa_mean)/aa_mean:+.1f}%)")
 
     # Coarse vs Fine
-    coarse_mean = df_clean[df_clean['scale'] == 'coarse']['r'].mean()
-    fine_mean = df_clean[df_clean['scale'] == 'fine']['r'].mean()
+    coarse_mean = df_valid[df_valid['scale'] == 'coarse']['r'].mean()
+    fine_mean = df_valid[df_valid['scale'] == 'fine']['r'].mean()
     print(f"\nScale:")
     print(f"  Coarse:                   {coarse_mean:.4f}")
     print(f"  Fine:                     {fine_mean:.4f}")
