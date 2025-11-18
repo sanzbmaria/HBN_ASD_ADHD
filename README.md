@@ -340,12 +340,28 @@ export DATA_ROOT=/home/user/data
 - Check file naming: `sub-*_task-rest_*.dtseries.nii`
 - Confirm files exist: `ls $DATA_ROOT/HBN_CIFTI/*.dtseries.nii`
 
-### "Config not found" error
-```bash
-# Ensure you're running from project root
-cd /path/to/HBN_ASD_ADHD
-./test_pipeline.sh
+### "Config not found" error or "config.sh: No such file or directory"
+This error means the Docker image is missing `config.sh`, usually because it was built before the config file was added.
+
+**Error message:**
 ```
+apply_parcellation.sh: line 6: /app/hyperalignment_scripts/config.sh: No such file or directory
+```
+or
+```
+OSError: Config file not found: /app/hyperalignment_scripts/config.sh
+```
+
+**Solution: Rebuild the Docker image**
+```bash
+./docker-build.sh
+```
+
+The pipeline scripts now validate the Docker image and will detect this issue automatically.
+
+**Other causes:**
+- Ensure you're running from project root: `cd /path/to/HBN_ASD_ADHD`
+- Check that `hyperalignment_scripts/config.sh` exists in your repository
 
 ### Memory errors during hyperalignment
 - Reduce `N_JOBS` in config.sh

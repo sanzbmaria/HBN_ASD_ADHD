@@ -9,6 +9,26 @@ IMAGE_TAG="latest"
 echo "Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
 echo "================================================"
 
+# Validate required files exist before building
+echo "Validating required files..."
+REQUIRED_FILES=(
+    "hyperalignment_scripts/config.sh"
+    "hyperalignment_scripts/read_config.py"
+    "hyperalignment_scripts/utils.py"
+    "Dockerfile"
+)
+
+for file in "${REQUIRED_FILES[@]}"; do
+    if [ ! -f "$file" ]; then
+        echo "ERROR: Required file not found: $file"
+        echo "Please ensure all pipeline files are present before building."
+        exit 1
+    fi
+done
+
+echo "✓ All required files found"
+echo ""
+
 docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
 
 echo ""

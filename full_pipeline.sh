@@ -102,6 +102,24 @@ if ! docker image inspect ${IMAGE_NAME} &> /dev/null; then
     exit 1
 fi
 
+# Validate that the Docker image has config.sh (detect stale images)
+echo "Validating Docker image contents..."
+if ! docker run --rm ${IMAGE_NAME} test -f /app/hyperalignment_scripts/config.sh; then
+    echo ""
+    echo "ERROR: Docker image is missing config.sh"
+    echo ""
+    echo "Your Docker image appears to be outdated and is missing required configuration files."
+    echo "This usually happens when the image was built before config.sh was added to the repository."
+    echo ""
+    echo "Solution: Rebuild the Docker image:"
+    echo "  ./docker-build.sh"
+    echo ""
+    echo "Then re-run this script."
+    exit 1
+fi
+echo "✓ Docker image validated"
+echo ""
+
 # Create log directory
 mkdir -p logs
 
