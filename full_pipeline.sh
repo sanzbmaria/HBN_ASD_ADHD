@@ -62,6 +62,37 @@ if [ ! -d "${DATA_ROOT}" ]; then
     exit 1
 fi
 
+# Validate that DTSERIES_ROOT and other paths are container paths (start with /data)
+# or are subdirectories of DATA_ROOT (for host paths)
+if [ -n "${DTSERIES_ROOT}" ]; then
+    # If DTSERIES_ROOT is set and doesn't start with /data, it should be under DATA_ROOT
+    if [[ ! "${DTSERIES_ROOT}" =~ ^/data ]]; then
+        # This is a host path - check if it's under DATA_ROOT
+        # Convert to absolute paths for comparison
+        DTSERIES_ABS=$(cd "$(dirname "${DTSERIES_ROOT}")" 2>/dev/null && pwd)/$(basename "${DTSERIES_ROOT}") || DTSERIES_ABS="${DTSERIES_ROOT}"
+        DATA_ROOT_ABS=$(cd "${DATA_ROOT}" && pwd)
+
+        # Check if DTSERIES_ABS starts with DATA_ROOT_ABS
+        if [[ ! "${DTSERIES_ABS}" == "${DATA_ROOT_ABS}"* ]]; then
+            echo "ERROR: DTSERIES_ROOT must be under DATA_ROOT or use container paths (/data/...)"
+            echo ""
+            echo "Current configuration:"
+            echo "  DATA_ROOT: ${DATA_ROOT}"
+            echo "  DTSERIES_ROOT: ${DTSERIES_ROOT}"
+            echo ""
+            echo "Solutions:"
+            echo "  1. Set DATA_ROOT to the parent directory containing all data:"
+            echo "     export DATA_ROOT=/path/to/parent/directory"
+            echo "     Then use container paths like:"
+            echo "     export DTSERIES_ROOT=/data/HBN_CIFTI/"
+            echo ""
+            echo "  2. Or ensure DTSERIES_ROOT is under DATA_ROOT:"
+            echo "     DATA_ROOT should contain (or be the parent of) HBN_CIFTI/"
+            exit 1
+        fi
+    fi
+fi
+
 # Check if Docker image exists
 if ! docker image inspect ${IMAGE_NAME} &> /dev/null; then
     echo "ERROR: Docker image '${IMAGE_NAME}' not found"

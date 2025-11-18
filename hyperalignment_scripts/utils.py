@@ -64,7 +64,9 @@ def get_glasser_atlas_file():
         cands = glob.glob(os.path.join(atlas_dir, "*.dlabel.nii"))
         if not cands:
             raise FileNotFoundError(
-                "Parcellation file not found. Update PARCELLATION_FILE in utils_test.py"
+                "Parcellation file not found at: {}\n"
+                "Update PARCELLATION_FILE in config.sh or set PARCELLATION_FILE environment variable.\n"
+                "The file should be a *.dlabel.nii atlas file.".format(PARCELLATION_FILE)
             )
         f = cands[0]
     g = nib.load(f)
