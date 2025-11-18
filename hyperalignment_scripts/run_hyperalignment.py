@@ -131,7 +131,7 @@ def prep_cnx_split(args):
 def load_dtseries_data(subj_id, parcel=None):
     """Load dtseries data from the GSR dataset (Python 2 version)."""
     dtseries_root = DTSERIES_ROOT
-    filename = DTSERIES_FILENAME_TEMPLATE.format(subj_id)
+    filename = DTSERIES_FILENAME_TEMPLATE.format(subj=subj_id)
     ds = nib.load(os.path.join(dtseries_root, filename)).get_fdata()[:, :VERTICES_IN_BOUNDS]
     if parcel:
         mask = (glasser_atlas == parcel).squeeze()
