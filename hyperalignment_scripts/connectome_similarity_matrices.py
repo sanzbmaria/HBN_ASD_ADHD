@@ -81,8 +81,9 @@ if __name__ == "__main__":
                 joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=0))
                 joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=1))
 
-        with Parallel(n_jobs=utils.N_JOBS) as parallel:
-            parallel(joblist)
+        print(f"Processing parcel {parcel}...")
+        print(f"Running {len(joblist)} similarity jobs...")
+        Parallel(n_jobs=utils.N_JOBS, verbose=10)(joblist)
         print(f"Finished parcel {parcel}")
 
     elif mode == 'batch':
@@ -108,8 +109,8 @@ if __name__ == "__main__":
                     joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, reliability_subjects, split=1))
 
             if joblist:
-                with Parallel(n_jobs=utils.N_JOBS) as parallel:
-                    parallel(joblist)
+                print(f"  Running {len(joblist)} similarity jobs for parcel {p}...")
+                Parallel(n_jobs=utils.N_JOBS, verbose=10)(joblist)
         print("\nFinished all parcels")
     else:
         print(f"Unknown mode: {mode}. Use 'single' or 'batch'")
