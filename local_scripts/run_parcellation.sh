@@ -1,6 +1,6 @@
 #!/bin/bash
 # Local execution: Apply parcellation to CIFTI dtseries files
-# Works on Mac and Linux with Docker
+# Modified for UK Biobank RAP with read-only input directory
 
 set -e
 
@@ -13,7 +13,7 @@ IMAGE_NAME="hyperalignment:latest"
 # Data directories (edit these to match your local setup)
 DATA_ROOT="${DATA_ROOT:-$(pwd)/data}"
 BASEDIR="${BASEDIR:-${DATA_ROOT}}"
-OUTDIR="${OUTDIR:-${DATA_ROOT}/hyperalignment_input/glasser_ptseries}"
+OUTDIR="${OUTDIR:-/home/dnanexus/hyperalignment_output/glasser_ptseries}"
 
 # Number of parallel jobs (adjust based on your CPU cores)
 N_JOBS="${N_JOBS:-8}"  # Default to 8 cores, adjust as needed
@@ -45,7 +45,7 @@ if [ ! -d "${BASEDIR}" ]; then
     echo ""
     echo "Please set DATA_ROOT or BASEDIR:"
     echo "  export DATA_ROOT=/path/to/your/data"
-    echo "  export BASEDIR=/path/to/HBN_CIFTI"
+    echo "  export BASEDIR=/path/to/your/cifti/files"
     exit 1
 fi
 
@@ -60,9 +60,10 @@ echo "Starting parcellation..."
 echo ""
 
 docker run --rm \
-    -v "${DATA_ROOT}":/data \
+    -v "${DATA_ROOT}":/data:ro \
+    -v "/home/dnanexus/hyperalignment_output":/output \
     -e BASEDIR=/data \
-    -e OUTDIR=/data/hyperalignment_input/glasser_ptseries \
+    -e OUTDIR=/output/glasser_ptseries \
     -e N_JOBS=${N_JOBS} \
     -w /app/hyperalignment_scripts \
     ${IMAGE_NAME} \
