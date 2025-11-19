@@ -10,7 +10,7 @@ from read_config import (
     POOL_NUM, N_JOBS, VERTICES_IN_BOUNDS, N_PARCELS,
     DTSERIES_ROOT, PTSERIES_ROOT, BASE_OUTDIR, TEMPORARY_OUTDIR,
     PARCELLATION_FILE, DTSERIES_FILENAME_TEMPLATE, DTSERIES_FILENAME_PATTERN,
-    LOGDIR, METADATA_EXCEL, SUBJECT_ID_COL
+    LOGDIR, METADATA_EXCEL, SUBJECT_ID_COL, SPLIT_COL
 )
 
 # Legacy variables for backwards compatibility
@@ -111,6 +111,78 @@ def load_metadata_subjects():
         print(f"Warning: Error reading METADATA_EXCEL: {e}, skipping metadata filtering")
         return None
 
+def get_train_subjects_from_excel():
+    """
+    Get subjects marked as 'train' in the Excel file's split column.
+    Returns None if metadata filtering is disabled or file not found.
+    """
+    use_filter = os.environ.get('USE_METADATA_FILTER', '0') == '1'
+
+    if not use_filter:
+        return None
+
+    if not os.path.exists(METADATA_EXCEL):
+        print(f"Warning: METADATA_EXCEL not found at {METADATA_EXCEL}")
+        return None
+
+    try:
+        import pandas as pd
+
+        if METADATA_EXCEL.endswith('.csv'):
+            df = pd.read_csv(METADATA_EXCEL)
+        else:
+            df = pd.read_excel(METADATA_EXCEL)
+
+        # Filter to train subjects
+        train_df = df[df[SPLIT_COL].str.lower().str.strip() == 'train']
+
+        # Normalize subject IDs
+        subjects = train_df[SUBJECT_ID_COL].astype(str).str.strip()
+        subjects = subjects.apply(lambda x: x if x.startswith("sub-") else f"sub-{x}")
+
+        train_subjects = sorted(set(subjects.tolist()))
+        print(f"Loaded {len(train_subjects)} TRAIN subjects from metadata file")
+        return train_subjects
+    except Exception as e:
+        print(f"Warning: Error reading train subjects from METADATA_EXCEL: {e}")
+        return None
+
+def get_test_subjects_from_excel():
+    """
+    Get subjects marked as 'test' in the Excel file's split column.
+    Returns None if metadata filtering is disabled or file not found.
+    """
+    use_filter = os.environ.get('USE_METADATA_FILTER', '0') == '1'
+
+    if not use_filter:
+        return None
+
+    if not os.path.exists(METADATA_EXCEL):
+        print(f"Warning: METADATA_EXCEL not found at {METADATA_EXCEL}")
+        return None
+
+    try:
+        import pandas as pd
+
+        if METADATA_EXCEL.endswith('.csv'):
+            df = pd.read_csv(METADATA_EXCEL)
+        else:
+            df = pd.read_excel(METADATA_EXCEL)
+
+        # Filter to test subjects
+        test_df = df[df[SPLIT_COL].str.lower().str.strip() == 'test']
+
+        # Normalize subject IDs
+        subjects = test_df[SUBJECT_ID_COL].astype(str).str.strip()
+        subjects = subjects.apply(lambda x: x if x.startswith("sub-") else f"sub-{x}")
+
+        test_subjects = sorted(set(subjects.tolist()))
+        print(f"Loaded {len(test_subjects)} TEST subjects from metadata file")
+        return test_subjects
+    except Exception as e:
+        print(f"Warning: Error reading test subjects from METADATA_EXCEL: {e}")
+        return None
+
 def _discover_subject_ids():
     """Find IDs with files like <ID>_task-rest_run-1__s5.dtseries.nii or <ID>_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"""
     # Use the configurable discovery glob pattern defined at the top of the file
@@ -134,16 +206,62 @@ def _discover_subject_ids():
     return discovered_ids
 
 def get_HA_train_subjects():
+    """
+    Get subjects for hyperalignment training.
+    If metadata filtering is enabled, uses subjects marked as 'train' in Excel.
+    Otherwise falls back to first 50 discovered subjects.
+    """
+    # Try to get train subjects from Excel
+    train_subjects = get_train_subjects_from_excel()
+    if train_subjects is not None:
+        # Filter to only subjects with existing files
+        all_discovered = _discover_subject_ids()
+        valid_train = [s for s in train_subjects if s in all_discovered]
+        print(f"Using {len(valid_train)} train subjects for hyperalignment (from Excel)")
+        return valid_train
+
+    # Fallback: use first 50 discovered subjects
     ids = _discover_subject_ids()
     if len(ids) > 50:
         return ids[:50]
     return ids[: max(1, len(ids) // 2)]
+
+def get_test_subjects():
+    """
+    Get test subjects for applying hyperalignment and computing similarity matrices.
+    If metadata filtering is enabled, uses subjects marked as 'test' in Excel.
+    Otherwise falls back to all discovered subjects.
+    """
+    # Try to get test subjects from Excel
+    test_subjects = get_test_subjects_from_excel()
+    if test_subjects is not None:
+        # Filter to only subjects with existing files
+        all_discovered = _discover_subject_ids()
+        valid_test = [s for s in test_subjects if s in all_discovered]
+        print(f"Using {len(valid_test)} test subjects (from Excel)")
+        return valid_test
+
+    # Fallback: return all discovered subjects
+    return _discover_subject_ids()
 
 def load_twin_subjects():
     """No twin metadata locally; return an empty list (safe fallback)."""
     return []
 
 def get_reliability_subjects():
+    """
+    Get subjects for reliability analysis.
+    If metadata filtering is enabled, uses TEST subjects from Excel.
+    Otherwise falls back to first 50 discovered subjects.
+    """
+    # When using Excel split, reliability subjects should be TEST subjects
+    test_subjects = get_test_subjects_from_excel()
+    if test_subjects is not None:
+        all_discovered = _discover_subject_ids()
+        valid_test = [s for s in test_subjects if s in all_discovered]
+        return valid_test
+
+    # Fallback: use first 50 non-twin subjects
     ids = _discover_subject_ids()
     twins = set(load_twin_subjects())
     rest = [s for s in ids if s not in twins]
