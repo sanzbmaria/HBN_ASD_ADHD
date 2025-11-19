@@ -1,6 +1,6 @@
 #!/bin/bash
 # Local execution: Build connectomes
-# Works on Mac and Linux with Docker
+# Modified for UK Biobank RAP with separate read-only inputs and writable outputs
 
 set -e
 
@@ -10,8 +10,10 @@ set -e
 
 IMAGE_NAME="hyperalignment:latest"
 
-# Data directory
+# Data directories
 DATA_ROOT="${DATA_ROOT:-$(pwd)/data}"
+INPUT_DIR="${INPUT_DIR:-/home/dnanexus/hyperalignment_output}"
+OUTPUT_DIR="${OUTPUT_DIR:-/home/dnanexus/connectomes}"
 
 # Script to run
 SCRIPT="${1:-build_aa_connectomes.py}"
@@ -28,6 +30,8 @@ echo "Local Execution: Build Connectomes"
 echo "================================================"
 echo "Docker image: ${IMAGE_NAME}"
 echo "Data root: ${DATA_ROOT}"
+echo "Input directory: ${INPUT_DIR}"
+echo "Output directory: ${OUTPUT_DIR}"
 echo "Script: ${SCRIPT}"
 echo "N_JOBS: ${N_JOBS}"
 echo "================================================"
@@ -56,12 +60,14 @@ if ! docker image inspect ${IMAGE_NAME} &> /dev/null; then
     exit 1
 fi
 
-# Check if data directory exists
-if [ ! -d "${DATA_ROOT}" ]; then
-    echo "ERROR: Data directory not found: ${DATA_ROOT}"
-    echo "Please set DATA_ROOT: export DATA_ROOT=/path/to/your/data"
+# Check if input directory exists
+if [ ! -d "${INPUT_DIR}" ]; then
+    echo "ERROR: Input directory not found: ${INPUT_DIR}"
     exit 1
 fi
+
+# Create output directory
+mkdir -p "${OUTPUT_DIR}"
 
 # ============================================================================
 # EXECUTION
@@ -71,8 +77,11 @@ echo "Starting connectome building with ${SCRIPT}..."
 echo ""
 
 docker run --rm \
-    -v "${DATA_ROOT}":/data \
+    -v "${INPUT_DIR}":/data/inputs:ro \
+    -v "${OUTPUT_DIR}":/data/outputs \
     -e N_JOBS=${N_JOBS} \
+    -e PTSERIES_ROOT=/data/inputs/glasser_ptseries \
+    -e BASE_OUTDIR=/data/outputs \
     -w /app/hyperalignment_scripts \
     ${IMAGE_NAME} \
     python3 ${SCRIPT}
