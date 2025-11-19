@@ -4,7 +4,7 @@ FROM continuumio/miniconda3:latest
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# Install system dependencies (SWIG for PyMVPA2, build tools, etc.)
+# Install system dependencies (including libGL for Workbench)
 RUN apt-get update && apt-get install -y \
     build-essential \
     swig \
@@ -13,10 +13,13 @@ RUN apt-get update && apt-get install -y \
     git \
     unzip \
     ca-certificates \
+    libgl1 \
+    libgl1-mesa-glx \
+    libgl1-mesa-dri \
+    libglu1-mesa \
     && rm -rf /var/lib/apt/lists/*
 
-# Create conda environment with exact versions that work
-# Based on user's working setup: Python 3.9 + PyMVPA2 2.6.5
+# Create conda environment with needed packages
 RUN conda create -n mvpa_stable \
     python=3.9.23 \
     nibabel=5.3.2 \
@@ -31,13 +34,13 @@ RUN conda create -n mvpa_stable \
     -c conda-forge \
     && conda clean -afy
 
-# Activate conda environment and install PyMVPA2
+# Activate environment and install PyMVPA2
 RUN /bin/bash -c "source activate mvpa_stable && \
     pip cache purge && \
     pip install pymvpa2==2.6.5 && \
-    conda install numpy=1.23.5 -c conda-forge"
+    conda install numpy=1.23.5 -c conda-forge --yes"
 
-# Make conda environment the default
+# Make environment default
 ENV PATH=/opt/conda/envs/mvpa_stable/bin:$PATH
 ENV CONDA_DEFAULT_ENV=mvpa_stable
 
@@ -52,13 +55,13 @@ ENV PATH="/opt/workbench/bin_linux64:${PATH}"
 # Create working directory
 WORKDIR /app
 
-# Copy the hyperalignment scripts
+# Copy hyperalignment code
 COPY hyperalignment_scripts/ /app/hyperalignment_scripts/
 
-# Set Python path to include hyperalignment_scripts
+# Ensure Python can import hyperalignment scripts
 ENV PYTHONPATH=/app/hyperalignment_scripts
 
-# Create directories for data mounting
+# Create directories for mounting
 RUN mkdir -p /data/HBN_CIFTI \
              /data/hyperalignment_input/glasser_ptseries \
              /data/connectomes \
