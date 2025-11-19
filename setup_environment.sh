@@ -74,6 +74,8 @@ if [ -z "${SKIP_CREATE:-}" ]; then
         joblib \
         tqdm \
         openpyxl \
+        swig \
+        gsl \
         -c conda-forge \
         -y
 
