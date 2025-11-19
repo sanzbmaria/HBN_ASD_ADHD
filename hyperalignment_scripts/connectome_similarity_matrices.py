@@ -6,6 +6,18 @@ import os, sys, glob
 from joblib import Parallel, delayed
 from scipy.spatial.distance import cdist, pdist, squareform
 
+def filter_subjects_with_files(parcel, connectome_dir, subjects, split=None):
+    """Filter subjects to only those with existing connectome files."""
+    valid_subjects = []
+    for s in subjects:
+        if split is None:
+            fn = f'{connectome_dir}/{s}_full_connectome_parcel_{parcel:03d}.npy'
+        else:
+            fn = f'{connectome_dir}/{s}_split_{split}_connectome_parcel_{parcel:03d}.npy'
+        if os.path.exists(fn):
+            valid_subjects.append(s)
+    return valid_subjects
+
 def load_full_connectomes(parcel, connectome_dir, subjects):
     connectome_list = []
     for s in subjects:
@@ -25,29 +37,45 @@ def load_split_connectomes(parcel, connectome_dir, subjects, split):
 
 # subject by subject correlation matrix.
 def ISC(scale, alignment, parcel, connectome_dir, outdir, subjects, split=None):
+    # Filter to only subjects with existing files
+    valid_subjects = filter_subjects_with_files(parcel, connectome_dir, subjects, split)
+    if len(valid_subjects) < 2:
+        print(f'Skipping {alignment}_{scale}_parcel_{parcel:03d} (split={split}): only {len(valid_subjects)} subjects with files')
+        return
+    if len(valid_subjects) < len(subjects):
+        print(f'Warning: {len(subjects) - len(valid_subjects)} subjects missing files for {alignment}_{scale}_parcel_{parcel:03d} (split={split})')
+
     # load in connectomes
     if split is None:
-        cnx = load_full_connectomes(parcel, connectome_dir, subjects)
+        cnx = load_full_connectomes(parcel, connectome_dir, valid_subjects)
         outfn = f'{outdir}/{alignment}_{scale}_full_parcel_{parcel:03d}_ISC.csv'
     else:
-        cnx = load_split_connectomes(parcel, connectome_dir, subjects, split)
+        cnx = load_split_connectomes(parcel, connectome_dir, valid_subjects, split)
         outfn = f'{outdir}/{alignment}_{scale}_split{split}_parcel_{parcel:03d}_ISC.csv'
     isc_mat = 1-pdist(cnx, 'correlation')
-    isc_mat = pd.DataFrame(data=squareform(isc_mat), columns=subjects, index=subjects)
+    isc_mat = pd.DataFrame(data=squareform(isc_mat), columns=valid_subjects, index=valid_subjects)
     isc_mat.to_csv(outfn)
     print(f'finished {outfn}')
 
 # subject by subject covariance matrix.
 def IS_covariance(scale, alignment, parcel, connectome_dir, outdir, subjects, split=None):
+    # Filter to only subjects with existing files
+    valid_subjects = filter_subjects_with_files(parcel, connectome_dir, subjects, split)
+    if len(valid_subjects) < 2:
+        print(f'Skipping {alignment}_{scale}_parcel_{parcel:03d} (split={split}): only {len(valid_subjects)} subjects with files')
+        return
+    if len(valid_subjects) < len(subjects):
+        print(f'Warning: {len(subjects) - len(valid_subjects)} subjects missing files for {alignment}_{scale}_parcel_{parcel:03d} (split={split})')
+
     # load in connectomes
     if split is None:
-        cnx = load_full_connectomes(parcel, connectome_dir, subjects)
+        cnx = load_full_connectomes(parcel, connectome_dir, valid_subjects)
         outfn = f'{outdir}/{alignment}_{scale}_full_parcel_{parcel:03d}_COV.csv'
     else:
-        cnx = load_split_connectomes(parcel, connectome_dir, subjects, split)
+        cnx = load_split_connectomes(parcel, connectome_dir, valid_subjects, split)
         outfn = f'{outdir}/{alignment}_{scale}_split{split}_parcel_{parcel:03d}_COV.csv'
     cov_mat = np.cov(cnx)
-    cov_mat = pd.DataFrame(data=cov_mat, columns=subjects, index=subjects)
+    cov_mat = pd.DataFrame(data=cov_mat, columns=valid_subjects, index=valid_subjects)
     cov_mat.to_csv(outfn)
     print(f'finished {outfn}')
 
