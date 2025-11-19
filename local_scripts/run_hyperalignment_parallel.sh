@@ -1,6 +1,6 @@
 #!/bin/bash
 # Local execution: Run hyperalignment for multiple parcels in parallel
-# Works on Mac and Linux with Docker
+# Modified for UK Biobank RAP with separate read-only inputs and writable outputs
 
 set -e
 
@@ -10,8 +10,10 @@ set -e
 
 IMAGE_NAME="hyperalignment:latest"
 
-# Data directory
+# Data directories
 DATA_ROOT="${DATA_ROOT:-$(pwd)/data}"
+INPUT_DIR="${INPUT_DIR:-/home/dnanexus/hyperalignment_output}"
+OUTPUT_DIR="${OUTPUT_DIR:-/home/dnanexus/connectomes}"
 
 # Parcel range (default: all 360 parcels)
 START_PARCEL="${START_PARCEL:-1}"
@@ -38,6 +40,8 @@ echo "Local Parallel Execution: Hyperalignment"
 echo "================================================"
 echo "Docker image: ${IMAGE_NAME}"
 echo "Data root: ${DATA_ROOT}"
+echo "Input directory: ${INPUT_DIR}"
+echo "Output directory: ${OUTPUT_DIR}"
 echo "Parcel range: ${START_PARCEL} to ${END_PARCEL}"
 echo "Mode: ${MODE}"
 echo "Max parallel containers: ${MAX_PARALLEL}"
@@ -67,11 +71,15 @@ if ! docker image inspect ${IMAGE_NAME} &> /dev/null; then
     exit 1
 fi
 
-# Check if data directory exists
-if [ ! -d "${DATA_ROOT}" ]; then
-    echo "ERROR: Data directory not found: ${DATA_ROOT}"
+# Check if input directory exists
+if [ ! -d "${INPUT_DIR}" ]; then
+    echo "ERROR: Input directory not found: ${INPUT_DIR}"
+    echo "This should contain the parcellated data from step 1"
     exit 1
 fi
+
+# Create output directory
+mkdir -p "${OUTPUT_DIR}"
 
 # ============================================================================
 # SETUP
@@ -132,9 +140,12 @@ for parcel in $(seq ${START_PARCEL} ${END_PARCEL}); do
 
     (
         docker run --rm \
-            -v "${DATA_ROOT}":/data \
+            -v "${INPUT_DIR}":/data/inputs:ro \
+            -v "${OUTPUT_DIR}":/data/outputs \
             -e N_JOBS=${N_JOBS} \
             -e POOL_NUM=${POOL_NUM} \
+            -e PTSERIES_ROOT=/data/inputs/glasser_ptseries \
+            -e BASE_OUTDIR=/data/outputs \
             -w /app/hyperalignment_scripts \
             ${IMAGE_NAME} \
             python run_hyperalignment.py ${parcel} ${MODE} \
