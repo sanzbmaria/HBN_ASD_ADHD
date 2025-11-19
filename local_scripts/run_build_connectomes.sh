@@ -66,6 +66,13 @@ if [ ! -d "${INPUT_DIR}" ]; then
     exit 1
 fi
 
+# Check if DATA_ROOT exists (needed for dtseries files)
+if [ ! -d "${DATA_ROOT}" ]; then
+    echo "ERROR: DATA_ROOT directory not found: ${DATA_ROOT}"
+    echo "Please set DATA_ROOT to your original CIFTI data directory"
+    exit 1
+fi
+
 # Create output directory
 mkdir -p "${OUTPUT_DIR}"
 
@@ -76,10 +83,13 @@ mkdir -p "${OUTPUT_DIR}"
 echo "Starting connectome building with ${SCRIPT}..."
 echo ""
 
+# FIXED: Mount both DATA_ROOT (for dtseries) and INPUT_DIR (for ptseries)
 docker run --rm \
+    -v "${DATA_ROOT}":/data/dtseries:ro \
     -v "${INPUT_DIR}":/data/inputs:ro \
     -v "${OUTPUT_DIR}":/data/outputs \
     -e N_JOBS=${N_JOBS} \
+    -e DTSERIES_ROOT=/data/dtseries \
     -e PTSERIES_ROOT=/data/inputs/glasser_ptseries \
     -e BASE_OUTDIR=/data/outputs \
     -w /app/hyperalignment_scripts \
