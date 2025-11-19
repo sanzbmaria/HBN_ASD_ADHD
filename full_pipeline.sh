@@ -33,19 +33,20 @@ RUN_IDM_RELIABILITY="${RUN_IDM_RELIABILITY:-yes}"
 # This applies to ALL stages (AA connectomes, hyperalignment, CHA connectomes, similarity matrices)
 CONNECTOME_MODE="${CONNECTOME_MODE:-both}"
 
-# IMPORTANT: Hyperalignment training always requires FULL connectomes,
-# even when doing split-half reliability analysis (matching Erica Bush's original implementation).
-# Automatically adjust 'split' to 'both' to ensure hyperalignment works correctly.
+# IMPORTANT: AA connectomes always needs FULL connectomes for hyperalignment training.
+# We'll use AA_CONNECTOME_MODE="both" for AA step, but keep original mode for other stages.
 ORIGINAL_MODE="${CONNECTOME_MODE}"
 if [ "${CONNECTOME_MODE}" = "split" ]; then
+    AA_CONNECTOME_MODE="both"
     echo ""
     echo "======================================================================"
-    echo "IMPORTANT: Hyperalignment training requires FULL connectomes"
-    echo "Automatically changing CONNECTOME_MODE from 'split' to 'both'"
-    echo "(This matches Erica Bush's original implementation)"
+    echo "NOTE: AA connectomes will build BOTH full and split connectomes"
+    echo "(Hyperalignment training requires full connectomes)"
+    echo "Other stages will use mode: ${ORIGINAL_MODE}"
     echo "======================================================================"
     echo ""
-    CONNECTOME_MODE="both"
+else
+    AA_CONNECTOME_MODE="${CONNECTOME_MODE}"
 fi
 
 # ============================================================================
@@ -204,7 +205,7 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
     echo "================================================"
     echo ""
     echo "Building anatomical connectomes from parcellated data..."
-    echo "Mode: ${CONNECTOME_MODE}"
+    echo "Mode: ${AA_CONNECTOME_MODE}"
     echo ""
 
     docker run --rm \
@@ -213,12 +214,12 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
-        -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -e CONNECTOME_MODE="${AA_CONNECTOME_MODE}" \
         -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
         -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
-        python3 build_aa_connectomes.py --mode ${CONNECTOME_MODE} \
+        python3 build_aa_connectomes.py --mode ${AA_CONNECTOME_MODE} \
         2>&1 | tee logs/build_aa_connectomes.log
 
     echo ""
