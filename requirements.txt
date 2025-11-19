@@ -1,0 +1,29 @@
+# Requirements for HBN ASD/ADHD Hyperalignment Pipeline
+# These are the exact versions tested to work with PyMVPA2
+
+# Core scientific computing
+numpy==1.23.5
+scipy==1.10.1
+
+# Neuroimaging
+nibabel==5.3.2
+
+# Machine learning
+scikit-learn==1.6.1
+
+# Data handling
+pandas==2.3.3
+
+# Parallel processing
+joblib
+
+# Progress bars
+tqdm
+
+# Visualization (optional, for plotting)
+matplotlib==3.9.4
+
+# PyMVPA2 - The hyperalignment library
+# IMPORTANT: Install this AFTER the above packages
+# pip install pymvpa2==2.6.5
+pymvpa2==2.6.5
