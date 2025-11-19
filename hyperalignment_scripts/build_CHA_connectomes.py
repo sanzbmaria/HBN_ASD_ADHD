@@ -3,7 +3,7 @@
 
 # This script is run on the aligned timeseries data produced from run_hyperalignment_simplified.py
 import numpy as np
-import hyperalignment_scripts.utils as utils
+import utils as utils
 import os, sys, glob
 from scipy.stats import zscore
 from scipy.spatial.distance import pdist, cdist, squareform
