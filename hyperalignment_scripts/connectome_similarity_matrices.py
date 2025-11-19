@@ -57,6 +57,9 @@ if __name__ == "__main__":
     parcel = int(sys.argv[1])
     mode = sys.argv[2] if len(sys.argv) > 2 else 'single'
 
+    # Get connectome mode from environment
+    connectome_mode = os.environ.get('CONNECTOME_MODE', 'both')
+
     twin_subjects = utils.load_twin_subjects()
     reliability_subjects = utils.get_reliability_subjects()
     all_subjects = list(set(twin_subjects + reliability_subjects))
@@ -74,12 +77,17 @@ if __name__ == "__main__":
         for alignment, conndir in zip(['aa','cha'],[aa_dir, cha_dir]):
             for scale in ['coarse','fine']:
                 dn = os.path.join(conndir, scale, f'parcel_{parcel:03d}')
-                joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
-                joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
-                joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=0))
-                joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=1))
-                joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=0))
-                joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=1))
+                # Only compute full connectome matrices if mode includes full
+                # AA always has full (because we auto-build both), CHA only has full if mode is 'full' or 'both'
+                if connectome_mode in ['full', 'both'] or alignment == 'aa':
+                    joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
+                    joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
+                # Only compute split matrices if mode includes split
+                if connectome_mode in ['split', 'both']:
+                    joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=0))
+                    joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=1))
+                    joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=0))
+                    joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=1))
 
         print(f"Processing parcel {parcel}...")
         print(f"Running {len(joblist)} similarity jobs...")
@@ -89,6 +97,7 @@ if __name__ == "__main__":
     elif mode == 'batch':
         # Run all 360 parcels
         print(f"Running batch mode for all 360 parcels...")
+        print(f"Connectome mode: {connectome_mode}")
         print(f"Total subjects: {len(all_subjects)}")
         print(f"Reliability subjects: {len(reliability_subjects)}")
 
@@ -101,12 +110,17 @@ if __name__ == "__main__":
                     if not os.path.exists(dn):
                         print(f"Warning: Directory not found: {dn}")
                         continue
-                    joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, all_subjects, split=None))
-                    joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, all_subjects, split=None))
-                    joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, reliability_subjects, split=0))
-                    joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, reliability_subjects, split=1))
-                    joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, reliability_subjects, split=0))
-                    joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, reliability_subjects, split=1))
+                    # Only compute full connectome matrices if mode includes full
+                    # AA always has full (because we auto-build both), CHA only has full if mode is 'full' or 'both'
+                    if connectome_mode in ['full', 'both'] or alignment == 'aa':
+                        joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, all_subjects, split=None))
+                        joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, all_subjects, split=None))
+                    # Only compute split matrices if mode includes split
+                    if connectome_mode in ['split', 'both']:
+                        joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, reliability_subjects, split=0))
+                        joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, reliability_subjects, split=1))
+                        joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, reliability_subjects, split=0))
+                        joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, reliability_subjects, split=1))
 
             if joblist:
                 print(f"  Running {len(joblist)} similarity jobs for parcel {p}...")
