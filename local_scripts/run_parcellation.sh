@@ -12,7 +12,7 @@ IMAGE_NAME="hyperalignment:latest"
 
 # Data directories (edit these to match your local setup)
 DATA_ROOT="${DATA_ROOT:-$(pwd)/data}"
-BASEDIR="${BASEDIR:-${DATA_ROOT}/HBN_CIFTI}"
+BASEDIR="${BASEDIR:-${DATA_ROOT}}"
 OUTDIR="${OUTDIR:-${DATA_ROOT}/hyperalignment_input/glasser_ptseries}"
 
 # Number of parallel jobs (adjust based on your CPU cores)
@@ -61,7 +61,7 @@ echo ""
 
 docker run --rm \
     -v "${DATA_ROOT}":/data \
-    -e BASEDIR=/data/HBN_CIFTI \
+    -e BASEDIR=/data \
     -e OUTDIR=/data/hyperalignment_input/glasser_ptseries \
     -e N_JOBS=${N_JOBS} \
     -w /app/hyperalignment_scripts \
