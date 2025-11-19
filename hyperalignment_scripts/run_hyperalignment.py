@@ -71,6 +71,7 @@ from read_config import (
     PARCELLATION_FILE, DTSERIES_FILENAME_TEMPLATE, DTSERIES_FILENAME_PATTERN,
     pool_num, n_jobs  # lowercase aliases for backward compatibility
 )
+import utils
 
 # For backwards compatibility with existing code
 BASE_CONNECTOME_DIR = BASE_OUTDIR
@@ -114,14 +115,14 @@ def prep_cnx_split(args):
     fn = connectome_dir + '/{a}_split_{split}_connectome_parcel_{i:03d}.npy'.format(a=subject, split=split, i=current_parcel)
     if not os.path.exists(fn):
         raise FileNotFoundError("Split connectome file not found: {}".format(fn))
-    
+
     d = np.nan_to_num(zscore(np.load(fn)))
-    
+
     # Suppress warnings during Dataset creation
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         ds_train = Dataset(d)
-    
+
     ds_train.sa['targets'] = np.arange(1, N_PARCELS)
     ds_train.fa['seeds'] = np.where(glasser_atlas == current_parcel)[0]
     return ds_train
@@ -130,7 +131,7 @@ def prep_cnx_split(args):
 def load_dtseries_data(subj_id, parcel=None):
     """Load dtseries data from the GSR dataset (Python 2 version)."""
     dtseries_root = DTSERIES_ROOT
-    filename = DTSERIES_FILENAME_TEMPLATE.format(subj_id)
+    filename = DTSERIES_FILENAME_TEMPLATE.format(subj=subj_id)
     ds = nib.load(os.path.join(dtseries_root, filename)).get_fdata()[:, :VERTICES_IN_BOUNDS]
     if parcel:
         mask = (glasser_atlas == parcel).squeeze()
@@ -204,6 +205,7 @@ def drive_hyperalignment_full(train_subjects, test_subjects, connectome_dir, map
     print("Loading training connectomes...")
     try:
         # Prepare arguments with parcel info
+        # Use full connectomes for training (matching Erica Bush's implementation)
         train_args = [(subject, connectome_dir, current_parcel) for subject in train_subjects]
         train_cnx = pool.map(prep_cnx, train_args)
         print("Successfully loaded {} training connectomes".format(len(train_cnx)))
@@ -228,6 +230,7 @@ def drive_hyperalignment_full(train_subjects, test_subjects, connectome_dir, map
     print("Loading test connectomes and applying mappers...")
     try:
         test_args = [(subject, connectome_dir, current_parcel) for subject in test_subjects]
+        # Use full connectomes for test subjects (matching Erica Bush's implementation)
         test_cnx = pool.map(prep_cnx, test_args)
         mappers = ha(test_cnx)  # get mappers for test subjects
         
@@ -260,7 +263,7 @@ def drive_hyperalignment_split(train_subjects, test_subjects, connectome_dir, ma
     
     print("Loading training connectomes...")
     try:
-        # Use full connectomes for training (same as full pipeline)
+        # Use full connectomes for training (matching Erica Bush's implementation)
         train_args = [(subject, connectome_dir, current_parcel) for subject in train_subjects]
         train_cnx = pool.map(prep_cnx, train_args)
         print("Successfully loaded {} training connectomes".format(len(train_cnx)))
@@ -380,7 +383,7 @@ def format_subject_id(subject_id_raw):
     return subject_id
 
 
-def get_train_test_subjects(csv_path='../data/diagnosis_summary/matched_subjects_diagnosis_mini.csv'):
+def get_train_test_subjects(csv_path=None):
     """
     Get training and test subjects from freesurfer CSV file.
 
@@ -425,11 +428,61 @@ def get_train_test_subjects(csv_path='../data/diagnosis_summary/matched_subjects
 
         return train_subjects, test_subjects
 
-    # Check if CSV exists
-    if not os.path.exists(csv_path):
-        print("WARNING: CSV file not found: {}".format(csv_path))
-        print("Falling back to random split of discovered subjects")
-        all_subjects = discover_subject_ids()
+    # Check if CSV path provided and exists
+    if csv_path is None or not os.path.exists(csv_path):
+        if csv_path:
+            print("WARNING: CSV file not found: {}".format(csv_path))
+
+        # Try to use METADATA_EXCEL with split column if available
+        use_metadata = os.environ.get('USE_METADATA_FILTER', '0') == '1'
+        metadata_path = os.environ.get('METADATA_EXCEL', '')
+
+        if use_metadata and metadata_path and os.path.exists(metadata_path):
+            print("Using train/test split from metadata file: {}".format(metadata_path))
+            try:
+                import pandas as pd
+                from read_config import SUBJECT_ID_COL, SPLIT_COL
+
+                # Load metadata file
+                if metadata_path.endswith('.csv'):
+                    df = pd.read_csv(metadata_path)
+                else:
+                    df = pd.read_excel(metadata_path)
+
+                print("Loaded {} subjects from metadata".format(len(df)))
+
+                # Check if split column exists
+                if SPLIT_COL in df.columns:
+                    print("Using '{}' column for train/test split".format(SPLIT_COL))
+
+                    # Get train and test subjects
+                    train_df = df[df[SPLIT_COL].str.lower() == 'train']
+                    test_df = df[df[SPLIT_COL].str.lower() == 'test']
+
+                    # Format subject IDs
+                    def format_id(sid):
+                        sid = str(sid).strip()
+                        if not sid.startswith('sub-'):
+                            sid = 'sub-' + sid
+                        return sid
+
+                    train_subjects = [format_id(s) for s in train_df[SUBJECT_ID_COL].values]
+                    test_subjects = [format_id(s) for s in test_df[SUBJECT_ID_COL].values]
+
+                    print("From metadata split column:")
+                    print("  Training: {} subjects".format(len(train_subjects)))
+                    print("  Test: {} subjects".format(len(test_subjects)))
+
+                    return train_subjects, test_subjects
+                else:
+                    print("Warning: '{}' column not found in metadata, falling back to random split".format(SPLIT_COL))
+            except Exception as e:
+                print("Error reading metadata file: {}, falling back to random split".format(e))
+
+        # Fall back to random split
+        print("Using random split of discovered subjects (respects metadata filtering)")
+        # Use utils._discover_subject_ids() which respects metadata filtering
+        all_subjects = utils._discover_subject_ids()
         print("Found {} total subjects".format(len(all_subjects)))
 
         random.seed(42)
@@ -485,8 +538,8 @@ def get_train_test_subjects(csv_path='../data/diagnosis_summary/matched_subjects
             formatted = train_subjects[i]
             print("  {} -> {}".format(raw, formatted))
 
-    # Get available subjects from filesystem
-    available_subjects = discover_subject_ids()
+    # Get available subjects from filesystem (respects metadata filtering)
+    available_subjects = utils._discover_subject_ids()
     print("\nAvailable in filesystem: {}".format(len(available_subjects)))
 
     # Filter to subjects with available data
@@ -556,10 +609,22 @@ if __name__ == '__main__':
     # Get train/test subjects
     train_subjects, test_subjects = get_train_test_subjects()
 
-    # Filter to subjects with available data
-    available_files = glob.glob(os.path.join(
-        train_connectome_dir, '*_full_connectome_parcel_*.npy'))
-    available_subjects = [os.path.basename(f).split('_full_connectome')[0]
+    # Filter to subjects with available data based on mode
+    # Check for the appropriate connectome files depending on mode
+    if mode == 'full':
+        pattern = os.path.join(train_connectome_dir, '*_full_connectome_parcel_{:03d}.npy'.format(parcel))
+        split_str = '_full_connectome'
+    elif mode == 'split':
+        # For split mode, check for split_0 files
+        pattern = os.path.join(train_connectome_dir, '*_split_0_connectome_parcel_{:03d}.npy'.format(parcel))
+        split_str = '_split_0_connectome'
+    else:  # mode == 'both'
+        # Check for either full or split files
+        pattern = os.path.join(train_connectome_dir, '*_split_0_connectome_parcel_{:03d}.npy'.format(parcel))
+        split_str = '_split_0_connectome'
+
+    available_files = glob.glob(pattern)
+    available_subjects = [os.path.basename(f).split(split_str)[0]
                          for f in available_files]
 
     train_subjects = [s for s in train_subjects if s in available_subjects]
@@ -571,6 +636,7 @@ if __name__ == '__main__':
 
     if len(train_subjects) == 0 or len(test_subjects) == 0:
         print("\nERROR: No subjects with available connectome data found")
+        print("Pattern searched: {}".format(pattern))
         print("Available files: {}".format(len(available_files)))
         if len(available_files) > 0:
             print("Sample file: {}".format(available_files[0]))

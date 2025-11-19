@@ -302,17 +302,66 @@ docker system prune -a
 ./docker-build.sh
 ```
 
-### "No subjects found" error
-- Check `DATA_ROOT` points to correct directory
+### "No subjects found" error or "No matching dtseries files found"
+**IMPORTANT**: All data must be under a single `DATA_ROOT` directory that gets mounted to `/data` in the container.
+
+**Common mistake:**
+```bash
+# ❌ WRONG: HBN_CIFTI is a sibling directory, not under DATA_ROOT
+export DATA_ROOT=/home/user/data/connectomesnorm
+export DTSERIES_ROOT=/home/user/data/HBN_CIFTI  # This won't be accessible in container!
+```
+
+**Solution 1 (Recommended):** Mount the parent directory
+```bash
+# ✅ CORRECT: Mount parent directory that contains all data
+export DATA_ROOT=/home/user/data
+# Now use container paths relative to /data mount point:
+export DTSERIES_ROOT=/data/HBN_CIFTI/
+export BASE_OUTDIR=/data/connectomes
+./full_pipeline.sh
+```
+
+**Solution 2:** Reorganize your data structure
+```bash
+# Move all data under one root directory:
+/home/user/data/
+├── HBN_CIFTI/              # Input files
+├── connectomes/            # Output directory
+└── HBN_ASD_ADHD.xlsx      # Metadata
+
+# Then simply:
+export DATA_ROOT=/home/user/data
+./full_pipeline.sh
+```
+
+**Additional checks:**
 - Verify dtseries files match pattern in config.sh
 - Check file naming: `sub-*_task-rest_*.dtseries.nii`
+- Confirm files exist: `ls $DATA_ROOT/HBN_CIFTI/*.dtseries.nii`
 
-### "Config not found" error
-```bash
-# Ensure you're running from project root
-cd /path/to/HBN_ASD_ADHD
-./test_pipeline.sh
+### "Config not found" error or "config.sh: No such file or directory"
+This error means the Docker image is missing `config.sh`, usually because it was built before the config file was added.
+
+**Error message:**
 ```
+apply_parcellation.sh: line 6: /app/hyperalignment_scripts/config.sh: No such file or directory
+```
+or
+```
+OSError: Config file not found: /app/hyperalignment_scripts/config.sh
+```
+
+**Solution: Rebuild the Docker image**
+```bash
+./docker-build.sh
+```
+
+The pipeline scripts now validate the Docker image and will detect this issue automatically.
+
+**Other causes:**
+- Ensure you're running from project root: `cd /path/to/HBN_ASD_ADHD`
+- Check that `hyperalignment_scripts/config.sh` exists in your repository
 
 ### Memory errors during hyperalignment
 - Reduce `N_JOBS` in config.sh

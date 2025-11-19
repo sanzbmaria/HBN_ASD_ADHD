@@ -39,6 +39,14 @@ def read_config(config_path=None):
             if not line or line.startswith('#') or line.startswith('#!/'):
                 continue
 
+            # Strip inline comments (everything after # that appears after =)
+            # This handles cases like: KEY="value"  # comment
+            if '#' in line:
+                eq_pos = line.find('=')
+                comment_pos = line.find('#')
+                if eq_pos != -1 and comment_pos > eq_pos:
+                    line = line[:comment_pos].rstrip()
+
             # Match pattern: KEY=value or KEY="value"
             match = re.match(r'^([A-Z_]+)=(.+)$', line)
             if match:
@@ -49,6 +57,12 @@ def read_config(config_path=None):
                 if (value.startswith('"') and value.endswith('"')) or \
                    (value.startswith("'") and value.endswith("'")):
                     value = value[1:-1]
+
+                # Handle bash variable substitution: ${VAR:-default}
+                # This extracts the default value from bash syntax
+                if value.startswith('${') and ':-' in value and value.endswith('}'):
+                    # Extract default value from ${VAR:-default}
+                    value = value.split(':-')[1].rstrip('}')
 
                 # Try to convert to int if it looks like a number
                 if value.isdigit():

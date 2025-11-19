@@ -3,9 +3,8 @@
 
 # This script is run on the aligned timeseries data produced from run_hyperalignment_simplified.py
 import numpy as np
-import hyperalignment_scripts.utils as utils
+import utils as utils
 import os, sys, glob
-from tqdm import tqdm
 from scipy.stats import zscore
 from scipy.spatial.distance import pdist, cdist, squareform
 from joblib import Parallel, delayed
@@ -19,7 +18,7 @@ warnings.filterwarnings("ignore", message=".*pixdim.*")
 warnings.filterwarnings("ignore", category=UserWarning, module="nibabel")
 
 # Logging setup
-LOGDIR = utils.LOGDIR if hasattr(utils, 'LOGDIR') else os.path.join(utils.base_outdir, 'logs')
+LOGDIR = utils.LOGDIR if hasattr(utils, 'LOGDIR') else os.path.join(utils.BASE_OUTDIR, 'logs')
 LOG_FILE = os.path.join(LOGDIR, 'build_CHA_connectomes_runlog.csv')
 verbose = True  # Set to False to suppress stdout
 
@@ -279,9 +278,9 @@ if __name__ == '__main__':
         print(f"Building CHA connectomes (mode: {args.mode})")
 
     # Set up directories using utils configuration
-    aligned_ts_dir = os.path.join(utils.base_outdir, 'hyperalignment_output', 'aligned_timeseries')
-    aligned_connectome_dir = os.path.join(utils.base_outdir, 'hyperalignment_output', 'connectomes')
-    n_parcels = utils.n_parcels  # typically 360 for Glasser parcellation
+    aligned_ts_dir = os.path.join(utils.BASE_OUTDIR, 'hyperalignment_output', 'aligned_timeseries')
+    aligned_connectome_dir = os.path.join(utils.BASE_OUTDIR, 'hyperalignment_output', 'connectomes')
+    n_parcels = utils.N_PARCELS  # typically 360 for Glasser parcellation
     
     # Check if aligned timeseries directory exists
     if not os.path.exists(aligned_ts_dir):
@@ -314,18 +313,18 @@ if __name__ == '__main__':
     joblist = []
     for s in subjects2run:
         if args.mode in ['full', 'both']:
-            joblist.append(delayed(lambda subj: build_cha_full_connectomes(subj, aligned_ts_dir, aligned_connectome_dir, n_parcels))(s))
+            joblist.append(delayed(build_cha_full_connectomes)(s, aligned_ts_dir, aligned_connectome_dir, n_parcels))
         if args.mode in ['split', 'both']:
-            joblist.append(delayed(lambda subj: build_cha_split_connectomes(subj, aligned_ts_dir, aligned_connectome_dir, n_parcels))(s))
+            joblist.append(delayed(build_cha_split_connectomes)(s, aligned_ts_dir, aligned_connectome_dir, n_parcels))
 
-    # Run in parallel with tqdm progress bar
-    with tqdm(total=len(joblist), desc="Building connectomes") as pbar:
-        def update(*args, **kwargs):
-            pbar.update(1)
-        with Parallel(n_jobs=utils.n_jobs) as parallel:
-            results = parallel(joblist)
-            for _ in results:
-                update()
     if verbose:
+        print(f"Running {len(joblist)} jobs with {utils.n_jobs} parallel workers...")
+        print(f"Building CHA connectomes: 0/{len(joblist)} completed")
+
+    # Run jobs in parallel with joblib's built-in progress
+    Parallel(n_jobs=utils.n_jobs, verbose=10)(joblist)
+
+    if verbose:
+        print(f"\nBuilding CHA connectomes: {len(joblist)}/{len(joblist)} completed")
         print('Finished building connectomes!')
 # %%

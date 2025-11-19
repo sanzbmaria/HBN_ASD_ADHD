@@ -16,7 +16,6 @@ from scipy.spatial.distance import cdist
 import utils as utils
 from joblib import Parallel, delayed
 import multiprocessing as mp
-from tqdm import tqdm
 import csv
 from datetime import datetime
 import pandas as pd
@@ -94,11 +93,8 @@ def build_full_connectomes(subj_id, save_coarse=False):
 
         connectome = 1 - cdist(subj_dss_all.T, subj_prc.T, 'correlation')
 
-        # Add progress bar for parcels
-        parcel_iter = tqdm(range(1, n_parcels+1), desc=f"Processing {subj_id} full connectomes", leave=False)
-
         parcels_done = 0
-        for i, parcel in enumerate(parcel_iter):
+        for i, parcel in enumerate(range(1, n_parcels+1)):
                 # Create parcel-specific directories BEFORE trying to save files
                 fine_parcel_dir = f'{base_outdir}/fine/parcel_{parcel:03d}'
                 os.makedirs(fine_parcel_dir, exist_ok=True)
@@ -150,20 +146,15 @@ def build_split_connectomes(subj_id, save_coarse=False):
         split = subj_prc.shape[0]//2
         split0_tpts = np.arange(0, split)
         split1_tpts = np.arange(split, subj_prc.shape[0])
-        
-        subj_dss0, subj_dss1 = subj_dss_all[split0_tpts], subj_dss_all[split1_tpts] 
+
+        subj_dss0, subj_dss1 = subj_dss_all[split0_tpts], subj_dss_all[split1_tpts]
         subj_prc0, subj_prc1 = subj_prc[split0_tpts], subj_prc[split1_tpts]
-        
+
         connectome0 = 1 - cdist(subj_dss0.T, subj_prc0.T, 'correlation')
         connectome1 = 1 - cdist(subj_dss1.T, subj_prc1.T, 'correlation')
 
-        
-        parcel_iter = tqdm(range(1, n_parcels+1), 
-                desc=f"Processing {subj_id} split connectomes", 
-                leave=False)
-
         parcels_done = 0
-        for i, parcel in enumerate(parcel_iter):
+        for i, parcel in enumerate(range(1, n_parcels+1)):
                 fine_parcel_dir = f'{base_outdir}/fine/parcel_{parcel:03d}'
                 os.makedirs(fine_parcel_dir, exist_ok=True)
                 
@@ -224,10 +215,24 @@ if __name__ == "__main__":
 
     verbose = True
 
+    # IMPORTANT: Hyperalignment training always requires FULL connectomes,
+    # even when doing split-half reliability analysis (matching Erica Bush's original implementation).
+    # If user specified 'split', automatically build 'both' to ensure hyperalignment works.
+    original_mode = args.mode
+    if args.mode == 'split':
+        print("\n" + "="*70)
+        print("IMPORTANT: Hyperalignment training requires FULL connectomes")
+        print("Automatically building BOTH full and split connectomes")
+        print("(This matches Erica Bush's original implementation)")
+        print("="*70 + "\n")
+        args.mode = 'both'
+
     if verbose:
         print(f"Building AA connectomes (mode: {args.mode})")
+        if original_mode != args.mode:
+            print(f"  (requested mode: {original_mode}, adjusted to: {args.mode})")
         print(f"Output directory: {base_outdir}")
-    
+
     # Use utils to find subjects (GSR-aware)
     all_subjects = utils._discover_subject_ids()
     
@@ -278,21 +283,23 @@ if __name__ == "__main__":
         exit(0)
     
     if verbose:
-        print(f"Processing {len(subjects_to_process)} incomplete subjects...")
+        print(f"Processing {len(subjects_to_process)} subjects...")
 
-    for s in tqdm(subjects_to_process, desc="Setting up jobs"):
+    for s in subjects_to_process:
         if args.mode in ['full', 'both']:
             joblist.append(delayed(build_full_connectomes)(s, save_coarse=True))
         if args.mode in ['split', 'both']:
             joblist.append(delayed(build_split_connectomes)(s, save_coarse=True))
-    
+
     if verbose:
         print(f"Running {len(joblist)} jobs with {n_jobs} parallel workers...")
-    
-    with Parallel(n_jobs=n_jobs, verbose=1) as parallel:
-        parallel(joblist)
-                   
+        print(f"Building AA connectomes: 0/{len(joblist)} completed")
+
+    # Run jobs in parallel with joblib's built-in progress
+    Parallel(n_jobs=n_jobs, verbose=10)(joblist)
+
     if verbose:
+        print(f"\nBuilding AA connectomes: {len(joblist)}/{len(joblist)} completed")
         print("All connectome processing completed!")
         print(f"Results saved to: {base_outdir}")
 

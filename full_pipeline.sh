@@ -33,6 +33,22 @@ RUN_IDM_RELIABILITY="${RUN_IDM_RELIABILITY:-yes}"
 # This applies to ALL stages (AA connectomes, hyperalignment, CHA connectomes, similarity matrices)
 CONNECTOME_MODE="${CONNECTOME_MODE:-both}"
 
+# IMPORTANT: AA connectomes always needs FULL connectomes for hyperalignment training.
+# We'll use AA_CONNECTOME_MODE="both" for AA step, but keep original mode for other stages.
+ORIGINAL_MODE="${CONNECTOME_MODE}"
+if [ "${CONNECTOME_MODE}" = "split" ]; then
+    AA_CONNECTOME_MODE="both"
+    echo ""
+    echo "======================================================================"
+    echo "NOTE: AA connectomes will build BOTH full and split connectomes"
+    echo "(Hyperalignment training requires full connectomes)"
+    echo "Other stages will use mode: ${ORIGINAL_MODE}"
+    echo "======================================================================"
+    echo ""
+else
+    AA_CONNECTOME_MODE="${CONNECTOME_MODE}"
+fi
+
 # ============================================================================
 # VALIDATION
 # ============================================================================
@@ -62,6 +78,37 @@ if [ ! -d "${DATA_ROOT}" ]; then
     exit 1
 fi
 
+# Validate that DTSERIES_ROOT and other paths are container paths (start with /data)
+# or are subdirectories of DATA_ROOT (for host paths)
+if [ -n "${DTSERIES_ROOT}" ]; then
+    # If DTSERIES_ROOT is set and doesn't start with /data, it should be under DATA_ROOT
+    if [[ ! "${DTSERIES_ROOT}" =~ ^/data ]]; then
+        # This is a host path - check if it's under DATA_ROOT
+        # Convert to absolute paths for comparison
+        DTSERIES_ABS=$(cd "$(dirname "${DTSERIES_ROOT}")" 2>/dev/null && pwd)/$(basename "${DTSERIES_ROOT}") || DTSERIES_ABS="${DTSERIES_ROOT}"
+        DATA_ROOT_ABS=$(cd "${DATA_ROOT}" && pwd)
+
+        # Check if DTSERIES_ABS starts with DATA_ROOT_ABS
+        if [[ ! "${DTSERIES_ABS}" == "${DATA_ROOT_ABS}"* ]]; then
+            echo "ERROR: DTSERIES_ROOT must be under DATA_ROOT or use container paths (/data/...)"
+            echo ""
+            echo "Current configuration:"
+            echo "  DATA_ROOT: ${DATA_ROOT}"
+            echo "  DTSERIES_ROOT: ${DTSERIES_ROOT}"
+            echo ""
+            echo "Solutions:"
+            echo "  1. Set DATA_ROOT to the parent directory containing all data:"
+            echo "     export DATA_ROOT=/path/to/parent/directory"
+            echo "     Then use container paths like:"
+            echo "     export DTSERIES_ROOT=/data/HBN_CIFTI/"
+            echo ""
+            echo "  2. Or ensure DTSERIES_ROOT is under DATA_ROOT:"
+            echo "     DATA_ROOT should contain (or be the parent of) HBN_CIFTI/"
+            exit 1
+        fi
+    fi
+fi
+
 # Check if Docker image exists
 if ! docker image inspect ${IMAGE_NAME} &> /dev/null; then
     echo "ERROR: Docker image '${IMAGE_NAME}' not found"
@@ -70,6 +117,24 @@ if ! docker image inspect ${IMAGE_NAME} &> /dev/null; then
     echo "  ./docker-build.sh"
     exit 1
 fi
+
+# Validate that the Docker image has config.sh (detect stale images)
+echo "Validating Docker image contents..."
+if ! docker run --rm ${IMAGE_NAME} test -f /app/hyperalignment_scripts/config.sh; then
+    echo ""
+    echo "ERROR: Docker image is missing config.sh"
+    echo ""
+    echo "Your Docker image appears to be outdated and is missing required configuration files."
+    echo "This usually happens when the image was built before config.sh was added to the repository."
+    echo ""
+    echo "Solution: Rebuild the Docker image:"
+    echo "  ./docker-build.sh"
+    echo ""
+    echo "Then re-run this script."
+    exit 1
+fi
+echo "✓ Docker image validated"
+echo ""
 
 # Create log directory
 mkdir -p logs
@@ -81,6 +146,12 @@ echo "  Output Directory: ${BASE_OUTDIR}"
 echo "  N_JOBS: ${N_JOBS}"
 echo "  POOL_NUM: ${POOL_NUM}"
 echo "  Connectome Mode: ${CONNECTOME_MODE}"
+if [ "${USE_METADATA_FILTER:-0}" = "1" ]; then
+    echo "  Metadata Filtering: ENABLED"
+    echo "  Metadata File: ${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}"
+else
+    echo "  Metadata Filtering: DISABLED"
+fi
 echo ""
 echo "Pipeline steps:"
 echo "  1. Parcellation: ${RUN_PARCELLATION}"
@@ -109,6 +180,8 @@ if [ "${RUN_PARCELLATION}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         bash apply_parcellation.sh \
@@ -132,7 +205,7 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
     echo "================================================"
     echo ""
     echo "Building anatomical connectomes from parcellated data..."
-    echo "Mode: ${CONNECTOME_MODE}"
+    echo "Mode: ${AA_CONNECTOME_MODE}"
     echo ""
 
     docker run --rm \
@@ -141,10 +214,12 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
-        -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -e CONNECTOME_MODE="${AA_CONNECTOME_MODE}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
-        python3 build_aa_connectomes.py --mode ${CONNECTOME_MODE} \
+        python3 build_aa_connectomes.py --mode ${AA_CONNECTOME_MODE} \
         2>&1 | tee logs/build_aa_connectomes.log
 
     echo ""
@@ -187,6 +262,8 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
             -e POOL_NUM=${POOL_NUM} \
             -e BASE_OUTDIR="${BASE_OUTDIR}" \
             -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+            -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+            -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
             -w /app/hyperalignment_scripts \
             ${IMAGE_NAME} \
             python run_hyperalignment.py ${parcel} ${HYPERALIGNMENT_MODE} \
@@ -219,6 +296,8 @@ if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 build_CHA_connectomes.py --mode ${CONNECTOME_MODE} \
@@ -250,6 +329,8 @@ if [ "${RUN_SIMILARITY_MATRICES}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 connectome_similarity_matrices.py 1 batch \
@@ -280,6 +361,8 @@ if [ "${RUN_IDM_RELIABILITY}" = "yes" ]; then
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e N_JOBS=${N_JOBS} \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+        -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 idm_reliability.py \
