@@ -8,7 +8,7 @@ set -e
 IMAGE_NAME="hyperalignment:latest"
 
 # Host paths
-INPUT_ROOT="${INPUT_ROOT:-/mnt/project/CIFTI_1}"
+INPUT_ROOT="${INPUT_ROOT:-/mnt/project/memory/Hyperalignment/UKB_data}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-/home/dnanexus/HBN_ASD_ADHD}"
 
 # Paths INSIDE the container
