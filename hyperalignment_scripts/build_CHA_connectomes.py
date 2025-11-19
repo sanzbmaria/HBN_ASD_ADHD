@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", message=".*pixdim.*")
 warnings.filterwarnings("ignore", category=UserWarning, module="nibabel")
 
 # Logging setup
-LOGDIR = utils.LOGDIR if hasattr(utils, 'LOGDIR') else os.path.join(utils.base_outdir, 'logs')
+LOGDIR = utils.LOGDIR if hasattr(utils, 'LOGDIR') else os.path.join(utils.BASE_OUTDIR, 'logs')
 LOG_FILE = os.path.join(LOGDIR, 'build_CHA_connectomes_runlog.csv')
 verbose = True  # Set to False to suppress stdout
 
@@ -278,9 +278,9 @@ if __name__ == '__main__':
         print(f"Building CHA connectomes (mode: {args.mode})")
 
     # Set up directories using utils configuration
-    aligned_ts_dir = os.path.join(utils.base_outdir, 'hyperalignment_output', 'aligned_timeseries')
-    aligned_connectome_dir = os.path.join(utils.base_outdir, 'hyperalignment_output', 'connectomes')
-    n_parcels = utils.n_parcels  # typically 360 for Glasser parcellation
+    aligned_ts_dir = os.path.join(utils.BASE_OUTDIR, 'hyperalignment_output', 'aligned_timeseries')
+    aligned_connectome_dir = os.path.join(utils.BASE_OUTDIR, 'hyperalignment_output', 'connectomes')
+    n_parcels = utils.N_PARCELS  # typically 360 for Glasser parcellation
     
     # Check if aligned timeseries directory exists
     if not os.path.exists(aligned_ts_dir):
