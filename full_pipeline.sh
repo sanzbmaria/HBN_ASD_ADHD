@@ -10,11 +10,17 @@ set -e
 
 IMAGE_NAME="hyperalignment:latest"
 
-# Data directory (REQUIRED - mount point inside container is /data)
+# BioBank Configuration: Separate read-only inputs and writable outputs
+# INPUTS_ROOT: Path to read-only CIFTI files (can be separate from outputs)
+# OUTPUTS_ROOT: Path to writable directory for all pipeline outputs
+INPUTS_ROOT="${INPUTS_ROOT:-}"
+OUTPUTS_ROOT="${OUTPUTS_ROOT:-}"
+
+# Legacy: DATA_ROOT can be used if inputs/outputs are under same parent
 DATA_ROOT="${DATA_ROOT:-}"
 
 # Configuration overrides (optional - will use config.sh defaults if not set)
-# BioBank paths: inputs are READ-ONLY, outputs are WRITABLE
+# These are CONTAINER paths (inside Docker)
 DTSERIES_ROOT="${DTSERIES_ROOT:-/data/inputs}"
 PTSERIES_ROOT="${PTSERIES_ROOT:-/data/outputs/glasser_ptseries}"
 BASE_OUTDIR="${BASE_OUTDIR:-/data/outputs/connectomes}"
@@ -58,55 +64,47 @@ echo "HYPERALIGNMENT PIPELINE - FULL PRODUCTION MODE"
 echo "================================================"
 echo ""
 
-if [ -z "${DATA_ROOT}" ]; then
-    echo "ERROR: DATA_ROOT environment variable not set"
+# Determine mount strategy based on what's provided
+if [ -n "${INPUTS_ROOT}" ] && [ -n "${OUTPUTS_ROOT}" ]; then
+    # BioBank mode: Separate read-only inputs and writable outputs
+    echo "BioBank Mode: Using separate input/output directories"
+    DOCKER_MOUNTS="-v ${INPUTS_ROOT}:/data/inputs:ro -v ${OUTPUTS_ROOT}:/data/outputs"
+
+    if [ ! -d "${INPUTS_ROOT}" ]; then
+        echo "ERROR: INPUTS_ROOT directory not found: ${INPUTS_ROOT}"
+        echo "This should point to your read-only CIFTI files location"
+        exit 1
+    fi
+
+    # Create outputs directory if it doesn't exist
+    mkdir -p "${OUTPUTS_ROOT}"
+
+elif [ -n "${DATA_ROOT}" ]; then
+    # Legacy mode: Single parent directory containing inputs/ and outputs/
+    echo "Legacy Mode: Using single DATA_ROOT directory"
+    DOCKER_MOUNTS="-v ${DATA_ROOT}:/data"
+
+    if [ ! -d "${DATA_ROOT}" ]; then
+        echo "ERROR: DATA_ROOT directory not found: ${DATA_ROOT}"
+        exit 1
+    fi
+
+else
+    echo "ERROR: Must set either (INPUTS_ROOT + OUTPUTS_ROOT) or DATA_ROOT"
     echo ""
-    echo "Usage:"
-    echo "  export DATA_ROOT=/path/to/your/data"
+    echo "BioBank Usage (recommended for read-only inputs):"
+    echo "  export INPUTS_ROOT=/biobank/readonly/cifti/path"
+    echo "  export OUTPUTS_ROOT=/scratch/user/outputs"
+    echo "  ./full_pipeline.sh"
+    echo ""
+    echo "Legacy Usage (if inputs and outputs under same parent):"
+    echo "  export DATA_ROOT=/path/to/parent/directory"
     echo "  ./full_pipeline.sh"
     echo ""
     echo "Configuration can be overridden via environment variables:"
     echo "  export N_JOBS=32               # Number of parallel jobs"
-    echo "  export CONNECTOME_MODE=split   # Use 'full', 'split', or 'both' (default)"
-    echo "  export DTSERIES_ROOT=/data/CIFTI_DATA  # Path to your CIFTI files"
-    echo "  ./full_pipeline.sh"
+    echo "  export CONNECTOME_MODE=split   # Use 'full', 'split', or 'both'"
     exit 1
-fi
-
-if [ ! -d "${DATA_ROOT}" ]; then
-    echo "ERROR: Data directory not found: ${DATA_ROOT}"
-    exit 1
-fi
-
-# Validate that DTSERIES_ROOT and other paths are container paths (start with /data)
-# or are subdirectories of DATA_ROOT (for host paths)
-if [ -n "${DTSERIES_ROOT}" ]; then
-    # If DTSERIES_ROOT is set and doesn't start with /data, it should be under DATA_ROOT
-    if [[ ! "${DTSERIES_ROOT}" =~ ^/data ]]; then
-        # This is a host path - check if it's under DATA_ROOT
-        # Convert to absolute paths for comparison
-        DTSERIES_ABS=$(cd "$(dirname "${DTSERIES_ROOT}")" 2>/dev/null && pwd)/$(basename "${DTSERIES_ROOT}") || DTSERIES_ABS="${DTSERIES_ROOT}"
-        DATA_ROOT_ABS=$(cd "${DATA_ROOT}" && pwd)
-
-        # Check if DTSERIES_ABS starts with DATA_ROOT_ABS
-        if [[ ! "${DTSERIES_ABS}" == "${DATA_ROOT_ABS}"* ]]; then
-            echo "ERROR: DTSERIES_ROOT must be under DATA_ROOT or use container paths (/data/...)"
-            echo ""
-            echo "Current configuration:"
-            echo "  DATA_ROOT: ${DATA_ROOT}"
-            echo "  DTSERIES_ROOT: ${DTSERIES_ROOT}"
-            echo ""
-            echo "Solutions:"
-            echo "  1. Set DATA_ROOT to the parent directory containing all data:"
-            echo "     export DATA_ROOT=/path/to/parent/directory"
-            echo "     Then use container paths like:"
-            echo "     export DTSERIES_ROOT=/data/HBN_CIFTI/"
-            echo ""
-            echo "  2. Or ensure DTSERIES_ROOT is under DATA_ROOT:"
-            echo "     DATA_ROOT should contain (or be the parent of) HBN_CIFTI/"
-            exit 1
-        fi
-    fi
 fi
 
 # Check if Docker image exists
@@ -140,9 +138,14 @@ echo ""
 mkdir -p logs
 
 echo "Configuration:"
-echo "  Data Root: ${DATA_ROOT}"
-echo "  CIFTI Data: ${DTSERIES_ROOT}"
-echo "  Output Directory: ${BASE_OUTDIR}"
+if [ -n "${INPUTS_ROOT}" ]; then
+    echo "  CIFTI Inputs (read-only): ${INPUTS_ROOT}"
+    echo "  Pipeline Outputs (writable): ${OUTPUTS_ROOT}"
+else
+    echo "  Data Root: ${DATA_ROOT}"
+fi
+echo "  Container CIFTI Path: ${DTSERIES_ROOT}"
+echo "  Container Output Path: ${BASE_OUTDIR}"
 echo "  N_JOBS: ${N_JOBS}"
 echo "  POOL_NUM: ${POOL_NUM}"
 echo "  Connectome Mode: ${CONNECTOME_MODE}"
@@ -176,7 +179,7 @@ if [ "${RUN_PARCELLATION}" = "yes" ]; then
     echo ""
 
     docker run --rm \
-        -v "${DATA_ROOT}":/data \
+        ${DOCKER_MOUNTS} \
         -e N_JOBS=${N_JOBS} \
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
@@ -210,7 +213,7 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
     echo ""
 
     docker run --rm \
-        -v "${DATA_ROOT}":/data \
+        ${DOCKER_MOUNTS} \
         -e N_JOBS=${N_JOBS} \
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
@@ -258,7 +261,7 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
         echo "Processing parcel ${parcel}/360..."
 
         docker run --rm \
-            -v "${DATA_ROOT}":/data \
+            ${DOCKER_MOUNTS} \
             -e N_JOBS=${N_JOBS} \
             -e POOL_NUM=${POOL_NUM} \
             -e BASE_OUTDIR="${BASE_OUTDIR}" \
@@ -294,7 +297,7 @@ if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
     echo ""
 
     docker run --rm \
-        -v "${DATA_ROOT}":/data \
+        ${DOCKER_MOUNTS} \
         -e N_JOBS=${N_JOBS} \
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
@@ -327,7 +330,7 @@ if [ "${RUN_SIMILARITY_MATRICES}" = "yes" ]; then
     echo ""
 
     docker run --rm \
-        -v "${DATA_ROOT}":/data \
+        ${DOCKER_MOUNTS} \
         -e N_JOBS=${N_JOBS} \
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
@@ -359,7 +362,7 @@ if [ "${RUN_IDM_RELIABILITY}" = "yes" ]; then
     echo ""
 
     docker run --rm \
-        -v "${DATA_ROOT}":/data \
+        ${DOCKER_MOUNTS} \
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e N_JOBS=${N_JOBS} \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
@@ -389,11 +392,19 @@ echo ""
 echo "All requested steps completed successfully!"
 echo ""
 echo "Results can be found in:"
-echo "  ${DATA_ROOT}/outputs/glasser_ptseries/                           (parcellated data)"
-echo "  ${DATA_ROOT}/outputs/connectomes/                                (AA connectomes)"
-echo "  ${DATA_ROOT}/outputs/connectomes/hyperalignment_output/          (hyperaligned data & CHA connectomes)"
-echo "  ${DATA_ROOT}/outputs/connectomes/similarity_matrices/            (ISC & covariance matrices)"
-echo "  ${DATA_ROOT}/outputs/connectomes/reliability_results/            (IDM reliability results)"
+if [ -n "${OUTPUTS_ROOT}" ]; then
+    echo "  ${OUTPUTS_ROOT}/glasser_ptseries/                           (parcellated data)"
+    echo "  ${OUTPUTS_ROOT}/connectomes/                                (AA connectomes)"
+    echo "  ${OUTPUTS_ROOT}/connectomes/hyperalignment_output/          (hyperaligned data & CHA connectomes)"
+    echo "  ${OUTPUTS_ROOT}/connectomes/similarity_matrices/            (ISC & covariance matrices)"
+    echo "  ${OUTPUTS_ROOT}/connectomes/reliability_results/            (IDM reliability results)"
+else
+    echo "  ${DATA_ROOT}/outputs/glasser_ptseries/                           (parcellated data)"
+    echo "  ${DATA_ROOT}/outputs/connectomes/                                (AA connectomes)"
+    echo "  ${DATA_ROOT}/outputs/connectomes/hyperalignment_output/          (hyperaligned data & CHA connectomes)"
+    echo "  ${DATA_ROOT}/outputs/connectomes/similarity_matrices/            (ISC & covariance matrices)"
+    echo "  ${DATA_ROOT}/outputs/connectomes/reliability_results/            (IDM reliability results)"
+fi
 echo ""
 echo "Logs saved to: ./logs/"
 echo ""
