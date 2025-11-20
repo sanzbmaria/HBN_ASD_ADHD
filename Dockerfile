@@ -62,7 +62,9 @@ COPY hyperalignment_scripts/ /app/hyperalignment_scripts/
 ENV PYTHONPATH=/app/hyperalignment_scripts
 
 # Create directories for mounting
-RUN mkdir -p /data/HBN_CIFTI \
+RUN mkdir -p /data/inputs \
+             /data/outputs \
+             /data/HBN_CIFTI \
              /data/hyperalignment_input/glasser_ptseries \
              /data/connectomes \
              /data/diagnosis_summary
