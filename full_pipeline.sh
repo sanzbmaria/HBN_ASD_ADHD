@@ -180,6 +180,7 @@ if [ "${RUN_PARCELLATION}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
+        -e TMPDIR="${TMPDIR:-/data/hyperalignment_input/.tmp}" \
         -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
         -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \

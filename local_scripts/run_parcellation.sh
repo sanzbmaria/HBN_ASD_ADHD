@@ -63,6 +63,7 @@ docker run --rm \
     -v "${DATA_ROOT}":/data \
     -e BASEDIR=/data/HBN_CIFTI \
     -e OUTDIR=/data/hyperalignment_input/glasser_ptseries \
+    -e TMPDIR="${TMPDIR:-/data/hyperalignment_input/.tmp}" \
     -e N_JOBS=${N_JOBS} \
     -w /app/hyperalignment_scripts \
     ${IMAGE_NAME} \

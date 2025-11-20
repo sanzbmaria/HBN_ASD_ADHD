@@ -27,6 +27,11 @@ fi
 # --- PREP ---
 mkdir -p "$OUTDIR"
 
+# Set TMPDIR to ensure wb_command writes temporary files to writable location
+# This is critical when BASEDIR is read-only
+export TMPDIR="${TMPDIR:-${OUTDIR}/.tmp}"
+mkdir -p "$TMPDIR"
+
 # Make the glob return empty if no matches (bash)
 shopt -s nullglob
 
@@ -121,7 +126,12 @@ done
 
 if [ "$failed" -ne 0 ]; then
   echo "Finished with $failed failed jobs"
+  # Clean up temporary directory
+  rm -rf "$TMPDIR"
   exit 1
 fi
+
+# Clean up temporary directory
+rm -rf "$TMPDIR"
 
 echo "All done. Outputs in: $OUTDIR"
