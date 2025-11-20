@@ -14,12 +14,12 @@ IMAGE_NAME="hyperalignment:latest"
 DATA_ROOT="${DATA_ROOT:-}"
 
 # Configuration overrides (optional - will use config.sh defaults if not set)
-# Note: Trailing slashes are included to match config.sh
-DTSERIES_ROOT="${DTSERIES_ROOT:-/data/HBN_CIFTI/}"
-PTSERIES_ROOT="${PTSERIES_ROOT:-/data/hyperalignment_input/glasser_ptseries/}"
-BASE_OUTDIR="${BASE_OUTDIR:-/data/connectomes}"
-N_JOBS="${N_JOBS:-24}"
-POOL_NUM="${POOL_NUM:-24}"
+# BioBank paths: inputs are READ-ONLY, outputs are WRITABLE
+DTSERIES_ROOT="${DTSERIES_ROOT:-/data/inputs}"
+PTSERIES_ROOT="${PTSERIES_ROOT:-/data/outputs/glasser_ptseries}"
+BASE_OUTDIR="${BASE_OUTDIR:-/data/outputs/connectomes}"
+N_JOBS="${N_JOBS:-32}"
+POOL_NUM="${POOL_NUM:-32}"
 
 # Pipeline control
 RUN_PARCELLATION="${RUN_PARCELLATION:-yes}"
@@ -148,7 +148,7 @@ echo "  POOL_NUM: ${POOL_NUM}"
 echo "  Connectome Mode: ${CONNECTOME_MODE}"
 if [ "${USE_METADATA_FILTER:-0}" = "1" ]; then
     echo "  Metadata Filtering: ENABLED"
-    echo "  Metadata File: ${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}"
+    echo "  Metadata File: ${METADATA_EXCEL:-/data/inputs/HBN_ASD_ADHD.xlsx}"
 else
     echo "  Metadata Filtering: DISABLED"
 fi
@@ -180,9 +180,9 @@ if [ "${RUN_PARCELLATION}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -e DTSERIES_ROOT="${DTSERIES_ROOT}" \
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
-        -e TMPDIR="${TMPDIR:-/data/hyperalignment_input/.tmp}" \
+        -e TMPDIR="${TMPDIR:-/data/outputs/.tmp}" \
         -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
-        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/inputs/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         bash apply_parcellation.sh \
@@ -217,7 +217,7 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
         -e PTSERIES_ROOT="${PTSERIES_ROOT}" \
         -e CONNECTOME_MODE="${AA_CONNECTOME_MODE}" \
         -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
-        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/inputs/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 build_aa_connectomes.py --mode ${AA_CONNECTOME_MODE} \
@@ -263,8 +263,9 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
             -e POOL_NUM=${POOL_NUM} \
             -e BASE_OUTDIR="${BASE_OUTDIR}" \
             -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
+            -e TMPDIR="${TMPDIR:-/data/outputs/.tmp}" \
             -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
-            -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
+            -e METADATA_EXCEL="${METADATA_EXCEL:-/data/inputs/HBN_ASD_ADHD.xlsx}" \
             -w /app/hyperalignment_scripts \
             ${IMAGE_NAME} \
             python run_hyperalignment.py ${parcel} ${HYPERALIGNMENT_MODE} \
@@ -298,7 +299,7 @@ if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
         -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
-        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/inputs/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 build_CHA_connectomes.py --mode ${CONNECTOME_MODE} \
@@ -331,7 +332,7 @@ if [ "${RUN_SIMILARITY_MATRICES}" = "yes" ]; then
         -e BASE_OUTDIR="${BASE_OUTDIR}" \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
         -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
-        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/inputs/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 connectome_similarity_matrices.py 1 batch \
@@ -363,7 +364,7 @@ if [ "${RUN_IDM_RELIABILITY}" = "yes" ]; then
         -e N_JOBS=${N_JOBS} \
         -e CONNECTOME_MODE="${CONNECTOME_MODE}" \
         -e USE_METADATA_FILTER="${USE_METADATA_FILTER:-0}" \
-        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}" \
+        -e METADATA_EXCEL="${METADATA_EXCEL:-/data/inputs/HBN_ASD_ADHD.xlsx}" \
         -w /app/hyperalignment_scripts \
         ${IMAGE_NAME} \
         python3 idm_reliability.py \
@@ -388,11 +389,11 @@ echo ""
 echo "All requested steps completed successfully!"
 echo ""
 echo "Results can be found in:"
-echo "  ${DATA_ROOT}/hyperalignment_input/glasser_ptseries/              (parcellated data)"
-echo "  ${DATA_ROOT}/connectomes/                                        (AA connectomes)"
-echo "  ${DATA_ROOT}/connectomes/hyperalignment_output/                  (hyperaligned data & CHA connectomes)"
-echo "  ${DATA_ROOT}/connectomes/similarity_matrices/                    (ISC & covariance matrices)"
-echo "  ${DATA_ROOT}/connectomes/reliability_results/                    (IDM reliability results)"
+echo "  ${DATA_ROOT}/outputs/glasser_ptseries/                           (parcellated data)"
+echo "  ${DATA_ROOT}/outputs/connectomes/                                (AA connectomes)"
+echo "  ${DATA_ROOT}/outputs/connectomes/hyperalignment_output/          (hyperaligned data & CHA connectomes)"
+echo "  ${DATA_ROOT}/outputs/connectomes/similarity_matrices/            (ISC & covariance matrices)"
+echo "  ${DATA_ROOT}/outputs/connectomes/reliability_results/            (IDM reliability results)"
 echo ""
 echo "Logs saved to: ./logs/"
 echo ""

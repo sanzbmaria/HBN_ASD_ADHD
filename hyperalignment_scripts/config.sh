@@ -1,46 +1,33 @@
 #!/usr/bin/env bash
 # Centralized configuration for hyperalignment pipeline
-# This file can be sourced by bash scripts and parsed by Python 2/3
+# Default paths inside the Docker container.
+# External environment variables will ALWAYS override these.
 
 # Processing parameters
-# Can be overridden by environment variables
-POOL_NUM="${POOL_NUM:-24}"
-N_JOBS="${N_JOBS:-24}"
-VERTICES_IN_BOUNDS="${VERTICES_IN_BOUNDS:-59412}"
-N_PARCELS="${N_PARCELS:-360}"
 
-# Pipeline mode: full, split, or both
-# This controls what connectomes are built throughout the pipeline
-# Can be overridden by environment variable
 CONNECTOME_MODE="${CONNECTOME_MODE:-both}"
 
-# Directory paths - these are INSIDE the Docker container
-# The host directory is mounted at /data in the container
-# Can be overridden by environment variables for custom data locations
-DTSERIES_ROOT="${DTSERIES_ROOT:-/data/HBN_CIFTI/}"
-PTSERIES_ROOT="${PTSERIES_ROOT:-/data/hyperalignment_input/glasser_ptseries/}"
-BASE_OUTDIR="${BASE_OUTDIR:-/data/connectomes}"
+
+POOL_NUM="${POOL_NUM:-32}"
+N_JOBS="${N_JOBS:-32}"
+VERTICES_IN_BOUNDS=59412
+N_PARCELS=360
+
+# Directory paths - INSIDE the Docker container
+DTSERIES_ROOT="${DTSERIES_ROOT:-/data/inputs}"
+PTSERIES_ROOT="${PTSERIES_ROOT:-/data/outputs/glasser_ptseries}"
+BASE_OUTDIR="${BASE_OUTDIR:-/data/outputs/connectomes}"
+
 TEMPORARY_OUTDIR="${TEMPORARY_OUTDIR:-work}"
 
-# Atlas configuration - inside container
-PARCELLATION_FILE="atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii"
+# Atlas configuration
+PARCELLATION_FILE="${PARCELLATION_FILE:-/app/hyperalignment_scripts/atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii}"
 
 # File naming patterns
-DTSERIES_FILENAME_TEMPLATE="{subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
-DTSERIES_FILENAME_PATTERN="*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
+DTSERIES_FILENAME_TEMPLATE="{subj}_bb.rfMRI.MNI.MSMAll.dtseries.nii"
+DTSERIES_FILENAME_PATTERN="*_bb.rfMRI.MNI.MSMAll.dtseries.nii"
 
-# Subject selection configuration (for organize_subjects.py)
-# Path to metadata Excel file (relative to /data in container or absolute)
-# Can be overridden by environment variable
-METADATA_EXCEL="${METADATA_EXCEL:-/data/HBN_ASD_ADHD.xlsx}"
-
-# Excel column names - customize these for your dataset
-SUBJECT_ID_COL="EID"           # Column containing subject IDs
-SPLIT_COL="split"              # Column with "train" or "test" assignments
-
-# That's it! Just provide an Excel with:
-# - A subject ID column (e.g., "EID", "subject", "participant_id")
-# - A split column with "train" or "test" for each subject
-#
-# Do your own stratification/random splitting however you want outside the pipeline,
-# then provide the final assignments in your Excel file.
+# Subject selection configuration
+METADATA_EXCEL="${METADATA_EXCEL:-/data/inputs/HBN_ASD_ADHD.xlsx}"
+SUBJECT_ID_COL="EID"
+SPLIT_COL="split"

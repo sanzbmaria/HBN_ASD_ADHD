@@ -28,8 +28,9 @@ fi
 mkdir -p "$OUTDIR"
 
 # Set TMPDIR to ensure wb_command writes temporary files to writable location
-# This is critical when BASEDIR is read-only
-export TMPDIR="${TMPDIR:-${OUTDIR}/.tmp}"
+# This is critical when BASEDIR is read-only (e.g., BioBank)
+# Default to outputs directory, not inputs
+export TMPDIR="${TMPDIR:-/data/outputs/.tmp}"
 mkdir -p "$TMPDIR"
 
 # Make the glob return empty if no matches (bash)

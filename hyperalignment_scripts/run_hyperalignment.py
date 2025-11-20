@@ -8,8 +8,10 @@
 import os
 import sys
 
-import tempfile
-TMPDIR = tempfile.gettempdir()  # Uses system temp directory
+# Set TMPDIR to a writable location (critical for BioBank with read-only inputs)
+# Use environment variable if set, otherwise default to /data/outputs/.tmp
+TMPDIR = os.environ.get('TMPDIR', '/data/outputs/.tmp')
+os.makedirs(TMPDIR, exist_ok=True)
 os.environ['TMPDIR'] = TMPDIR
 os.environ['TEMP'] = TMPDIR
 os.environ['TMP'] = TMPDIR
