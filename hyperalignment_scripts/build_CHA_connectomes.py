@@ -318,11 +318,11 @@ if __name__ == '__main__':
             joblist.append(delayed(build_cha_split_connectomes)(s, aligned_ts_dir, aligned_connectome_dir, n_parcels))
 
     if verbose:
-        print(f"Running {len(joblist)} jobs with {utils.n_jobs} parallel workers...")
+        print(f"Running {len(joblist)} jobs with {utils.N_JOBS} parallel workers...")
         print(f"Building CHA connectomes: 0/{len(joblist)} completed")
 
     # Run jobs in parallel with joblib's built-in progress
-    Parallel(n_jobs=utils.n_jobs, verbose=10)(joblist)
+    Parallel(N_JOBS=utils.N_JOBS, verbose=10)(joblist)
 
     if verbose:
         print(f"\nBuilding CHA connectomes: {len(joblist)}/{len(joblist)} completed")
