@@ -112,14 +112,22 @@ def load_metadata_subjects():
         return None
 
 def _discover_subject_ids():
-    """Find IDs with files like <ID>_task-rest_run-1__s5.dtseries.nii or <ID>_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"""
+    """Find IDs from dtseries files using the configured filename pattern"""
     # Use the configurable discovery glob pattern defined at the top of the file
     pattern = os.path.join(DTSERIES_ROOT, DTSERIES_FILENAME_PATTERN)
 
     ids = []
     for fp in glob.glob(pattern):
         name = os.path.basename(fp)
-        sid = name.split("_task-rest")[0]
+        # Extract subject ID: everything before the first underscore followed by the pattern
+        # Works for both HBN (_task-rest) and BioBank (_bb.rfMRI) patterns
+        if "_task-rest" in name:
+            sid = name.split("_task-rest")[0]
+        elif "_bb." in name:
+            sid = name.split("_bb.")[0]
+        else:
+            # Fallback: take everything before .dtseries.nii
+            sid = name.replace(".dtseries.nii", "").split("_")[0]
         ids.append(sid)
 
     discovered_ids = sorted(set(ids))

@@ -239,8 +239,9 @@ if __name__ == "__main__":
     # Also check ptseries directory for subjects
     subjects_from_ptseries = []
     if os.path.exists(utils.PTSERIES_ROOT):
-        subjects_from_ptseries = [d for d in os.listdir(utils.PTSERIES_ROOT) 
-                                 if d.startswith("sub-") and os.path.isdir(os.path.join(utils.PTSERIES_ROOT, d))]
+        # BioBank subjects may not have "sub-" prefix, so just check for directories
+        subjects_from_ptseries = [d for d in os.listdir(utils.PTSERIES_ROOT)
+                                 if os.path.isdir(os.path.join(utils.PTSERIES_ROOT, d)) and not d.startswith('.')]
     
     # Use intersection of subjects available in both dtseries and ptseries
     subjects2run = list(set(all_subjects).intersection(set(subjects_from_ptseries)))
