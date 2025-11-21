@@ -361,7 +361,7 @@ def get_train_test_subjects(csv_path=None):
     all_subjects_copy = list(all_subjects)
     random.shuffle(all_subjects_copy)
 
-    n_train = int(len(all_subjects_copy) * 0.4)
+    n_train = int(len(all_subjects_copy) * 0.2)
     train_subjects = all_subjects_copy[:n_train]
     test_subjects = all_subjects_copy[n_train:]
 
