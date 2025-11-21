@@ -418,7 +418,7 @@ def get_train_test_subjects(csv_path=None):
         random.shuffle(test_subjects_copy)
 
         # Split: 40% train, 60% test
-        n_train = max(1, int(len(test_subjects_copy) * 0.4))
+        n_train = max(1, int(len(test_subjects_copy) * 0.2))
         train_subjects = test_subjects_copy[:n_train]
         test_subjects = test_subjects_copy[n_train:]
 
