@@ -15,8 +15,8 @@ N_PARCELS=360
 
 # Directory paths - INSIDE the Docker container
 DTSERIES_ROOT="${DTSERIES_ROOT:-/data/inputs}"
-PTSERIES_ROOT="${PTSERIES_ROOT:-/data/glasser_ptseries}"
-BASE_OUTDIR="${BASE_OUTDIR:-/data/connectomes}"
+PTSERIES_ROOT="${PTSERIES_ROOT:-/data/outputs/glasser_ptseries}"
+BASE_OUTDIR="${BASE_OUTDIR:-/data/outputs/connectomes}"
 
 TEMPORARY_OUTDIR="${TEMPORARY_OUTDIR:-work}"
 
