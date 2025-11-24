@@ -22,7 +22,7 @@ def load_full_connectomes(parcel, connectome_dir, subjects):
     connectome_list = []
     for s in subjects:
         fn = f'{connectome_dir}/{s}_full_connectome_parcel_{parcel:03d}.npy'
-        connectome_list.append(np.load(fn).ravel())
+        connectome_list.append(np.load(fn, allow_pickle=True).ravel())
     print(f"parcel {parcel} stacked shape {np.shape(connectome_list)}")
     return np.stack(connectome_list)
 
@@ -30,7 +30,7 @@ def load_split_connectomes(parcel, connectome_dir, subjects, split):
     connectome_list = []
     for s in subjects:
         fn = f'{connectome_dir}/{s}_split_{split}_connectome_parcel_{parcel:03d}.npy'
-        connectome_list.append(np.load(fn).ravel())
+        connectome_list.append(np.load(fn, allow_pickle=True).ravel())
     print(f"parcel {parcel} split {split} stacked shape {np.shape(connectome_list)}")
     return np.stack(connectome_list)
 
