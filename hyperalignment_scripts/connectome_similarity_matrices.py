@@ -78,8 +78,7 @@ if __name__ == "__main__":
             for scale in ['coarse','fine']:
                 dn = os.path.join(conndir, scale, f'parcel_{parcel:03d}')
                 # Only compute full connectome matrices if mode includes full
-                # AA always has full (because we auto-build both), CHA only has full if mode is 'full' or 'both'
-                if connectome_mode in ['full', 'both'] or alignment == 'aa':
+                if connectome_mode in ['full', 'both']:
                     joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
                     joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
                 # Only compute split matrices if mode includes split
@@ -111,8 +110,7 @@ if __name__ == "__main__":
                         print(f"Warning: Directory not found: {dn}")
                         continue
                     # Only compute full connectome matrices if mode includes full
-                    # AA always has full (because we auto-build both), CHA only has full if mode is 'full' or 'both'
-                    if connectome_mode in ['full', 'both'] or alignment == 'aa':
+                    if connectome_mode in ['full', 'both']:
                         joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, all_subjects, split=None))
                         joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, all_subjects, split=None))
                     # Only compute split matrices if mode includes split
