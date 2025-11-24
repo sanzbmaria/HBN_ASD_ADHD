@@ -59,9 +59,26 @@ fi
 # VALIDATION
 # ============================================================================
 
+# ============================================================================
+# TIMING SETUP
+# ============================================================================
+
+PIPELINE_START=$(date +%s)
+declare -A STEP_TIMES
+
+format_duration() {
+    local seconds=$1
+    local hours=$((seconds / 3600))
+    local minutes=$(((seconds % 3600) / 60))
+    local secs=$((seconds % 60))
+    printf "%02d:%02d:%02d" $hours $minutes $secs
+}
+
 echo "================================================"
 echo "HYPERALIGNMENT PIPELINE V2 - CUSTOM HYPERALIGNMENT"
 echo "================================================"
+echo ""
+echo "Pipeline started at: $(date)"
 echo ""
 
 # Determine mount strategy based on what's provided
@@ -183,12 +200,14 @@ echo ""
 # ============================================================================
 
 if [ "${RUN_PARCELLATION}" = "yes" ]; then
+    STEP_START=$(date +%s)
     echo "================================================"
     echo "STEP 1: PARCELLATION"
     echo "================================================"
     echo ""
     echo "Converting dtseries to parcellated ptseries..."
     echo "This may take several hours depending on the number of subjects."
+    echo "Started at: $(date)"
     echo ""
 
     docker run --rm \
@@ -204,8 +223,11 @@ if [ "${RUN_PARCELLATION}" = "yes" ]; then
         bash apply_parcellation.sh \
         2>&1 | tee logs/parcellation.log
 
+    STEP_END=$(date +%s)
+    STEP_DURATION=$((STEP_END - STEP_START))
+    STEP_TIMES["parcellation"]=$STEP_DURATION
     echo ""
-    echo "✓ Parcellation complete"
+    echo "✓ Parcellation complete - Duration: $(format_duration $STEP_DURATION)"
     echo ""
 else
     echo "Skipping parcellation (RUN_PARCELLATION=no)"
@@ -217,12 +239,14 @@ fi
 # ============================================================================
 
 if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
+    STEP_START=$(date +%s)
     echo "================================================"
     echo "STEP 2: BUILD AA CONNECTOMES"
     echo "================================================"
     echo ""
     echo "Building anatomical connectomes from parcellated data..."
     echo "Mode: ${AA_CONNECTOME_MODE}"
+    echo "Started at: $(date)"
     echo ""
 
     docker run --rm \
@@ -239,8 +263,12 @@ if [ "${RUN_BUILD_AA_CONNECTOMES}" = "yes" ]; then
         python3 build_aa_connectomes.py --mode ${AA_CONNECTOME_MODE} \
         2>&1 | tee logs/build_aa_connectomes.log
 
+    STEP_END=$(date +%s)
+    STEP_DURATION=$((STEP_END - STEP_START))
+    STEP_TIMES["build_aa"]=$STEP_DURATION
+
     echo ""
-    echo "✓ AA connectomes built"
+    echo "✓ AA connectomes built - Duration: $(format_duration $STEP_DURATION)"
     echo ""
 else
     echo "Skipping AA connectome building (RUN_BUILD_AA_CONNECTOMES=no)"
@@ -252,6 +280,7 @@ fi
 # ============================================================================
 
 if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
+    STEP_START=$(date +%s)
     echo "================================================"
     echo "STEP 3: HYPERALIGNMENT V2 (Custom Module)"
     echo "================================================"
@@ -260,6 +289,7 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
     echo "Using custom hyperalignment module (not PyMVPA2)"
     echo "Mode: ${CONNECTOME_MODE}"
     echo "This is the most time-consuming step."
+    echo "Started at: $(date)"
     echo ""
 
     # Pass through CONNECTOME_MODE to hyperalignment
@@ -283,8 +313,12 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
             2>&1 | tee logs/hyperalignment_v2_parcel_${parcel}.log
     done
 
+    STEP_END=$(date +%s)
+    STEP_DURATION=$((STEP_END - STEP_START))
+    STEP_TIMES["hyperalignment"]=$STEP_DURATION
+
     echo ""
-    echo "✓ Hyperalignment V2 complete for all parcels"
+    echo "✓ Hyperalignment V2 complete for all parcels - Duration: $(format_duration $STEP_DURATION)"
     echo ""
 else
     echo "Skipping hyperalignment (RUN_HYPERALIGNMENT=no)"
@@ -296,12 +330,14 @@ fi
 # ============================================================================
 
 if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
+    STEP_START=$(date +%s)
     echo "================================================"
     echo "STEP 4: BUILD CHA CONNECTOMES"
     echo "================================================"
     echo ""
     echo "Building connectomes from hyperaligned data..."
     echo "Mode: ${CONNECTOME_MODE}"
+    echo "Started at: $(date)"
     echo ""
 
     docker run --rm \
@@ -316,8 +352,12 @@ if [ "${RUN_CHA_CONNECTOMES}" = "yes" ]; then
         python3 build_CHA_connectomes.py --mode ${CONNECTOME_MODE} \
         2>&1 | tee logs/build_cha_connectomes.log
 
+    STEP_END=$(date +%s)
+    STEP_DURATION=$((STEP_END - STEP_START))
+    STEP_TIMES["build_cha"]=$STEP_DURATION
+
     echo ""
-    echo "✓ CHA connectomes built"
+    echo "✓ CHA connectomes built - Duration: $(format_duration $STEP_DURATION)"
     echo ""
 else
     echo "Skipping CHA connectome building (RUN_CHA_CONNECTOMES=no)"
@@ -329,12 +369,14 @@ fi
 # ============================================================================
 
 if [ "${RUN_SIMILARITY_MATRICES}" = "yes" ]; then
+    STEP_START=$(date +%s)
     echo "================================================"
     echo "STEP 5: COMPUTE SIMILARITY MATRICES"
     echo "================================================"
     echo ""
     echo "Computing inter-subject similarity matrices..."
     echo "This computes ISC and covariance matrices for all 360 parcels."
+    echo "Started at: $(date)"
     echo ""
 
     docker run --rm \
@@ -349,8 +391,12 @@ if [ "${RUN_SIMILARITY_MATRICES}" = "yes" ]; then
         python3 connectome_similarity_matrices.py 1 batch \
         2>&1 | tee logs/similarity_matrices.log
 
+    STEP_END=$(date +%s)
+    STEP_DURATION=$((STEP_END - STEP_START))
+    STEP_TIMES["similarity"]=$STEP_DURATION
+
     echo ""
-    echo "✓ Similarity matrices computed"
+    echo "✓ Similarity matrices computed - Duration: $(format_duration $STEP_DURATION)"
     echo ""
 else
     echo "Skipping similarity matrix computation (RUN_SIMILARITY_MATRICES=no)"
@@ -362,11 +408,13 @@ fi
 # ============================================================================
 
 if [ "${RUN_IDM_RELIABILITY}" = "yes" ]; then
+    STEP_START=$(date +%s)
     echo "================================================"
     echo "STEP 6: COMPUTE IDM RELIABILITY"
     echo "================================================"
     echo ""
     echo "Computing split-half reliability of IDMs..."
+    echo "Started at: $(date)"
     echo ""
 
     docker run --rm \
@@ -381,8 +429,12 @@ if [ "${RUN_IDM_RELIABILITY}" = "yes" ]; then
         python3 idm_reliability.py \
         2>&1 | tee logs/idm_reliability.log
 
+    STEP_END=$(date +%s)
+    STEP_DURATION=$((STEP_END - STEP_START))
+    STEP_TIMES["idm_reliability"]=$STEP_DURATION
+
     echo ""
-    echo "✓ IDM reliability computed"
+    echo "✓ IDM reliability computed - Duration: $(format_duration $STEP_DURATION)"
     echo ""
 else
     echo "Skipping IDM reliability computation (RUN_IDM_RELIABILITY=no)"
@@ -393,8 +445,42 @@ fi
 # SUMMARY
 # ============================================================================
 
+PIPELINE_END=$(date +%s)
+TOTAL_DURATION=$((PIPELINE_END - PIPELINE_START))
+
+echo ""
 echo "================================================"
 echo "PIPELINE V2 COMPLETE"
+echo "================================================"
+echo ""
+echo "Finished at: $(date)"
+echo ""
+echo "TIMING SUMMARY:"
+echo "----------------------------------------"
+
+if [ ${STEP_TIMES["parcellation"]+_} ]; then
+    echo "  Parcellation:          $(format_duration ${STEP_TIMES["parcellation"]})"
+fi
+if [ ${STEP_TIMES["build_aa"]+_} ]; then
+    echo "  Build AA Connectomes:  $(format_duration ${STEP_TIMES["build_aa"]})"
+fi
+if [ ${STEP_TIMES["hyperalignment"]+_} ]; then
+    echo "  Hyperalignment:        $(format_duration ${STEP_TIMES["hyperalignment"]})"
+fi
+if [ ${STEP_TIMES["build_cha"]+_} ]; then
+    echo "  Build CHA Connectomes: $(format_duration ${STEP_TIMES["build_cha"]})"
+fi
+if [ ${STEP_TIMES["similarity"]+_} ]; then
+    echo "  Similarity Matrices:   $(format_duration ${STEP_TIMES["similarity"]})"
+fi
+if [ ${STEP_TIMES["idm_reliability"]+_} ]; then
+    echo "  IDM Reliability:       $(format_duration ${STEP_TIMES["idm_reliability"]})"
+fi
+
+echo "----------------------------------------"
+echo "  TOTAL PIPELINE TIME:   $(format_duration $TOTAL_DURATION)"
+echo "========================================"
+echo ""
 echo "================================================"
 echo ""
 echo "All requested steps completed successfully!"
