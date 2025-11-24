@@ -52,6 +52,43 @@ def IS_covariance(scale, alignment, parcel, connectome_dir, outdir, subjects, sp
     print(f'finished {outfn}')
 
 
+def get_available_subjects(connectome_dir, parcel, connectome_mode):
+    """
+    Find subjects that actually have connectome files available.
+
+    Parameters:
+    -----------
+    connectome_dir : str
+        Directory containing connectome files (e.g., coarse/parcel_001/)
+    parcel : int
+        Parcel number
+    connectome_mode : str
+        'full', 'split', or 'both'
+
+    Returns:
+    --------
+    full_subjects : list
+        Subjects with full connectomes (empty if mode is 'split')
+    split_subjects : list
+        Subjects with split connectomes (empty if mode is 'full')
+    """
+    full_subjects = []
+    split_subjects = []
+
+    # Check for full connectomes
+    if connectome_mode in ['full', 'both']:
+        full_pattern = os.path.join(connectome_dir, f'*_full_connectome_parcel_{parcel:03d}.npy')
+        full_files = glob.glob(full_pattern)
+        full_subjects = [os.path.basename(f).split('_full_connectome')[0] for f in full_files]
+
+    # Check for split connectomes
+    if connectome_mode in ['split', 'both']:
+        split_pattern = os.path.join(connectome_dir, f'*_split_0_connectome_parcel_{parcel:03d}.npy')
+        split_files = glob.glob(split_pattern)
+        split_subjects = [os.path.basename(f).split('_split_0_connectome')[0] for f in split_files]
+
+    return full_subjects, split_subjects
+
 
 if __name__ == "__main__":
     parcel = int(sys.argv[1])
@@ -77,16 +114,32 @@ if __name__ == "__main__":
         for alignment, conndir in zip(['aa','cha'],[aa_dir, cha_dir]):
             for scale in ['coarse','fine']:
                 dn = os.path.join(conndir, scale, f'parcel_{parcel:03d}')
+                if not os.path.exists(dn):
+                    print(f"Warning: Directory not found: {dn}")
+                    continue
+
+                # Discover which subjects have files for this alignment/scale
+                available_full, available_split = get_available_subjects(dn, parcel, connectome_mode)
+
                 # Only compute full connectome matrices if mode includes full
-                if connectome_mode in ['full', 'both']:
-                    joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
-                    joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
+                if connectome_mode in ['full', 'both'] and available_full:
+                    # Filter to subjects that have files
+                    filtered_full = [s for s in all_subjects if s in available_full]
+                    if filtered_full:
+                        print(f"  {alignment}/{scale}: {len(filtered_full)} subjects with full connectomes")
+                        joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, filtered_full, split=None))
+                        joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, filtered_full, split=None))
+
                 # Only compute split matrices if mode includes split
-                if connectome_mode in ['split', 'both']:
-                    joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=0))
-                    joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=1))
-                    joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=0))
-                    joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, reliability_subjects, split=1))
+                if connectome_mode in ['split', 'both'] and available_split:
+                    # Filter to subjects that have files
+                    filtered_split = [s for s in reliability_subjects if s in available_split]
+                    if filtered_split:
+                        print(f"  {alignment}/{scale}: {len(filtered_split)} subjects with split connectomes")
+                        joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, filtered_split, split=0))
+                        joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, filtered_split, split=1))
+                        joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, filtered_split, split=0))
+                        joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, filtered_split, split=1))
 
         print(f"Processing parcel {parcel}...")
         print(f"Running {len(joblist)} similarity jobs...")
@@ -107,18 +160,29 @@ if __name__ == "__main__":
                 for scale in ['coarse','fine']:
                     dn = os.path.join(conndir, scale, f'parcel_{p:03d}')
                     if not os.path.exists(dn):
-                        print(f"Warning: Directory not found: {dn}")
+                        print(f"  Warning: Directory not found: {dn}")
                         continue
+
+                    # Discover which subjects have files for this alignment/scale
+                    available_full, available_split = get_available_subjects(dn, p, connectome_mode)
+
                     # Only compute full connectome matrices if mode includes full
-                    if connectome_mode in ['full', 'both']:
-                        joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, all_subjects, split=None))
-                        joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, all_subjects, split=None))
+                    if connectome_mode in ['full', 'both'] and available_full:
+                        # Filter to subjects that have files
+                        filtered_full = [s for s in all_subjects if s in available_full]
+                        if filtered_full:
+                            joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, filtered_full, split=None))
+                            joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, filtered_full, split=None))
+
                     # Only compute split matrices if mode includes split
-                    if connectome_mode in ['split', 'both']:
-                        joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, reliability_subjects, split=0))
-                        joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, reliability_subjects, split=1))
-                        joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, reliability_subjects, split=0))
-                        joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, reliability_subjects, split=1))
+                    if connectome_mode in ['split', 'both'] and available_split:
+                        # Filter to subjects that have files
+                        filtered_split = [s for s in reliability_subjects if s in available_split]
+                        if filtered_split:
+                            joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, filtered_split, split=0))
+                            joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, filtered_split, split=1))
+                            joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, filtered_split, split=0))
+                            joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, filtered_split, split=1))
 
             if joblist:
                 print(f"  Running {len(joblist)} similarity jobs for parcel {p}...")
