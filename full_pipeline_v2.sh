@@ -22,8 +22,8 @@ DATA_ROOT="${DATA_ROOT:-}"
 # Configuration overrides (optional - will use config.sh defaults if not set)
 # These are CONTAINER paths (inside Docker)
 DTSERIES_ROOT="${DTSERIES_ROOT:-/data/inputs}"
-PTSERIES_ROOT="${PTSERIES_ROOT:-/data/outputs/glasser_ptseries}"
-BASE_OUTDIR="${BASE_OUTDIR:-/data/outputs/connectomes}"
+PTSERIES_ROOT="${PTSERIES_ROOT:-/data/glasser_ptseries}"
+BASE_OUTDIR="${BASE_OUTDIR:-/data/connectomes}"
 N_JOBS="${N_JOBS:-32}"
 POOL_NUM="${POOL_NUM:-32}"
 
@@ -411,11 +411,11 @@ if [ -n "${OUTPUTS_ROOT}" ]; then
     echo "  ${OUTPUTS_ROOT}/connectomes/similarity_matrices/            (ISC & covariance matrices)"
     echo "  ${OUTPUTS_ROOT}/connectomes/reliability_results/            (IDM reliability results)"
 else
-    echo "  ${DATA_ROOT}/outputs/glasser_ptseries/                           (parcellated data)"
-    echo "  ${DATA_ROOT}/outputs/connectomes/                                (AA connectomes)"
-    echo "  ${DATA_ROOT}/outputs/connectomes/hyperalignment_output/          (hyperaligned data & CHA connectomes)"
-    echo "  ${DATA_ROOT}/outputs/connectomes/similarity_matrices/            (ISC & covariance matrices)"
-    echo "  ${DATA_ROOT}/outputs/connectomes/reliability_results/            (IDM reliability results)"
+    echo "  ${DATA_ROOT}/glasser_ptseries/                           (parcellated data)"
+    echo "  ${DATA_ROOT}/connectomes/                                (AA connectomes)"
+    echo "  ${DATA_ROOT}/connectomes/hyperalignment_output/          (hyperaligned data & CHA connectomes)"
+    echo "  ${DATA_ROOT}/connectomes/similarity_matrices/            (ISC & covariance matrices)"
+    echo "  ${DATA_ROOT}/connectomes/reliability_results/            (IDM reliability results)"
 fi
 echo ""
 echo "Logs saved to: ./logs/"
