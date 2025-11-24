@@ -25,6 +25,9 @@ def load_split_connectomes(parcel, connectome_dir, subjects, split):
 
 # subject by subject correlation matrix.
 def ISC(scale, alignment, parcel, connectome_dir, outdir, subjects, split=None):
+    # Ensure subjects are strings for consistent CSV output
+    subjects = [str(s) for s in subjects]
+
     # load in connectomes
     if split is None:
         cnx = load_full_connectomes(parcel, connectome_dir, subjects)
@@ -39,6 +42,9 @@ def ISC(scale, alignment, parcel, connectome_dir, outdir, subjects, split=None):
 
 # subject by subject covariance matrix.
 def IS_covariance(scale, alignment, parcel, connectome_dir, outdir, subjects, split=None):
+    # Ensure subjects are strings for consistent CSV output
+    subjects = [str(s) for s in subjects]
+
     # load in connectomes
     if split is None:
         cnx = load_full_connectomes(parcel, connectome_dir, subjects)
