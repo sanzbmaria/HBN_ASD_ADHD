@@ -9,7 +9,7 @@ from scipy.stats import zscore
 from scipy.spatial.distance import pdist, cdist, squareform
 from joblib import Parallel, delayed
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 import warnings
@@ -34,7 +34,7 @@ def append_log(subj_id, mode, parcels_completed, status, message=''):
             if write_header:
                 writer.writerow(['timestamp', 'subject', 'mode', 'parcels_completed', 'status', 'message'])
             writer.writerow([
-                datetime.now(datetime.timezone.utc).isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 subj_id, mode, parcels_completed, status, message
             ])
             fh.flush()
