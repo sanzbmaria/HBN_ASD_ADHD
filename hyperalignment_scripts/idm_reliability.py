@@ -56,8 +56,12 @@ def get_valid_ISC_subjects(mat1, mat2=None, include_these=None):
 
 def run_reliability(fn0, fn1):
     try:
-        mat0 = pd.read_csv(fn0, index_col=0)
-        mat1 = pd.read_csv(fn1, index_col=0)
+        # Read CSVs with string dtypes to ensure consistent subject ID types
+        mat0 = pd.read_csv(fn0, index_col=0, dtype=str)
+        mat1 = pd.read_csv(fn1, index_col=0, dtype=str)
+        # Convert data values back to float (they're correlation/covariance values)
+        mat0 = mat0.astype(float)
+        mat1 = mat1.astype(float)
         valid_subs = get_valid_ISC_subjects(mat0, mat1)
 
         if len(valid_subs) < 2:
