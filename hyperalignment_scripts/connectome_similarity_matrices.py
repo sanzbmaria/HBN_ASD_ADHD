@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import utils
 import os, sys, glob
+import pickle
 from joblib import Parallel, delayed
 from scipy.spatial.distance import cdist, pdist, squareform
 
@@ -20,19 +21,41 @@ def filter_subjects_with_files(parcel, connectome_dir, subjects, split=None):
 
 def load_full_connectomes(parcel, connectome_dir, subjects):
     connectome_list = []
+    valid_subjects = []
     for s in subjects:
         fn = f'{connectome_dir}/{s}_full_connectome_parcel_{parcel:03d}.npy'
-        connectome_list.append(np.load(fn, allow_pickle=True).ravel())
-    print(f"parcel {parcel} stacked shape {np.shape(connectome_list)}")
-    return np.stack(connectome_list)
+        try:
+            data = np.load(fn, allow_pickle=True).ravel()
+            connectome_list.append(data)
+            valid_subjects.append(s)
+        except (EOFError, pickle.UnpicklingError, ValueError) as e:
+            print(f"Warning: Skipping corrupted file {fn}: {e}")
+            continue
+
+    if len(connectome_list) == 0:
+        raise ValueError(f"No valid connectome files found for parcel {parcel}")
+
+    print(f"parcel {parcel} stacked shape {np.shape(connectome_list)} ({len(valid_subjects)}/{len(subjects)} subjects)")
+    return np.stack(connectome_list), valid_subjects
 
 def load_split_connectomes(parcel, connectome_dir, subjects, split):
     connectome_list = []
+    valid_subjects = []
     for s in subjects:
         fn = f'{connectome_dir}/{s}_split_{split}_connectome_parcel_{parcel:03d}.npy'
-        connectome_list.append(np.load(fn, allow_pickle=True).ravel())
-    print(f"parcel {parcel} split {split} stacked shape {np.shape(connectome_list)}")
-    return np.stack(connectome_list)
+        try:
+            data = np.load(fn, allow_pickle=True).ravel()
+            connectome_list.append(data)
+            valid_subjects.append(s)
+        except (EOFError, pickle.UnpicklingError, ValueError) as e:
+            print(f"Warning: Skipping corrupted file {fn}: {e}")
+            continue
+
+    if len(connectome_list) == 0:
+        raise ValueError(f"No valid split connectome files found for parcel {parcel} split {split}")
+
+    print(f"parcel {parcel} split {split} stacked shape {np.shape(connectome_list)} ({len(valid_subjects)}/{len(subjects)} subjects)")
+    return np.stack(connectome_list), valid_subjects
 
 
 # subject by subject correlation matrix.
@@ -45,15 +68,20 @@ def ISC(scale, alignment, parcel, connectome_dir, outdir, subjects, split=None):
     if len(valid_subjects) < len(subjects):
         print(f'Warning: {len(subjects) - len(valid_subjects)} subjects missing files for {alignment}_{scale}_parcel_{parcel:03d} (split={split})')
 
-    # load in connectomes
+    # load in connectomes (returns data and actually valid subjects after corruption check)
     if split is None:
-        cnx = load_full_connectomes(parcel, connectome_dir, valid_subjects)
+        cnx, loaded_subjects = load_full_connectomes(parcel, connectome_dir, valid_subjects)
         outfn = f'{outdir}/{alignment}_{scale}_full_parcel_{parcel:03d}_ISC.csv'
     else:
-        cnx = load_split_connectomes(parcel, connectome_dir, valid_subjects, split)
+        cnx, loaded_subjects = load_split_connectomes(parcel, connectome_dir, valid_subjects, split)
         outfn = f'{outdir}/{alignment}_{scale}_split{split}_parcel_{parcel:03d}_ISC.csv'
+
+    if len(loaded_subjects) < 2:
+        print(f'Skipping {alignment}_{scale}_parcel_{parcel:03d} (split={split}): only {len(loaded_subjects)} valid subjects after loading')
+        return
+
     isc_mat = 1-pdist(cnx, 'correlation')
-    isc_mat = pd.DataFrame(data=squareform(isc_mat), columns=valid_subjects, index=valid_subjects)
+    isc_mat = pd.DataFrame(data=squareform(isc_mat), columns=loaded_subjects, index=loaded_subjects)
     isc_mat.to_csv(outfn)
     print(f'finished {outfn}')
 
@@ -67,15 +95,20 @@ def IS_covariance(scale, alignment, parcel, connectome_dir, outdir, subjects, sp
     if len(valid_subjects) < len(subjects):
         print(f'Warning: {len(subjects) - len(valid_subjects)} subjects missing files for {alignment}_{scale}_parcel_{parcel:03d} (split={split})')
 
-    # load in connectomes
+    # load in connectomes (returns data and actually valid subjects after corruption check)
     if split is None:
-        cnx = load_full_connectomes(parcel, connectome_dir, valid_subjects)
+        cnx, loaded_subjects = load_full_connectomes(parcel, connectome_dir, valid_subjects)
         outfn = f'{outdir}/{alignment}_{scale}_full_parcel_{parcel:03d}_COV.csv'
     else:
-        cnx = load_split_connectomes(parcel, connectome_dir, valid_subjects, split)
+        cnx, loaded_subjects = load_split_connectomes(parcel, connectome_dir, valid_subjects, split)
         outfn = f'{outdir}/{alignment}_{scale}_split{split}_parcel_{parcel:03d}_COV.csv'
+
+    if len(loaded_subjects) < 2:
+        print(f'Skipping {alignment}_{scale}_parcel_{parcel:03d} (split={split}): only {len(loaded_subjects)} valid subjects after loading')
+        return
+
     cov_mat = np.cov(cnx)
-    cov_mat = pd.DataFrame(data=cov_mat, columns=valid_subjects, index=valid_subjects)
+    cov_mat = pd.DataFrame(data=cov_mat, columns=loaded_subjects, index=loaded_subjects)
     cov_mat.to_csv(outfn)
     print(f'finished {outfn}')
 
