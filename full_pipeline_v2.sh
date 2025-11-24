@@ -262,12 +262,8 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
     echo "This is the most time-consuming step."
     echo ""
 
-    # Determine hyperalignment mode from CONNECTOME_MODE
-    if [ "${CONNECTOME_MODE}" = "split" ] || [ "${CONNECTOME_MODE}" = "both" ]; then
-        HYPERALIGNMENT_MODE="split"
-    else
-        HYPERALIGNMENT_MODE="full"
-    fi
+    # Pass through CONNECTOME_MODE to hyperalignment
+    HYPERALIGNMENT_MODE="${CONNECTOME_MODE}"
 
     for parcel in {1..360}; do
         echo "Processing parcel ${parcel}/360..."
