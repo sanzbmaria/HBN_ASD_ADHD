@@ -56,6 +56,11 @@ def get_valid_ISC_subjects(mat1, mat2=None, include_these=None):
 
 def run_reliability(fn0, fn1):
     try:
+        # Check if both files exist before trying to read
+        if not os.path.exists(fn0) or not os.path.exists(fn1):
+            # Silently return NaN for missing files (expected with small N or failed parcels)
+            return np.nan, np.nan, np.nan
+
         # Read CSVs
         mat0 = pd.read_csv(fn0, index_col=0)
         mat1 = pd.read_csv(fn1, index_col=0)
@@ -80,8 +85,12 @@ def run_reliability(fn0, fn1):
         else:
             r,p,z = mantel_test_fallback(vec0, vec1, method='pearson')
         return r, p, z
+    except FileNotFoundError:
+        # Silently return NaN for missing files (expected with small N or failed parcels)
+        return np.nan, np.nan, np.nan
     except Exception as e:
-        print(f"Error processing {fn0}, {fn1}: {e}")
+        # Only print errors for unexpected failures (not missing files)
+        print(f"Warning: Unexpected error processing {os.path.basename(fn0)}: {e}")
         return np.nan, np.nan, np.nan
 
 if __name__ == '__main__':
@@ -141,7 +150,9 @@ if __name__ == '__main__':
     df_valid = df.dropna(subset=['r'])
     n_failed = len(df) - len(df_valid)
     if n_failed > 0:
-        print(f"Warning: {n_failed}/{len(df)} analyses failed (NaN in output)")
+        print(f"\nNote: {n_failed}/{len(df)} analyses returned NaN")
+        print(f"  (This is expected when parcels have insufficient data or hyperalignment failed)")
+        print(f"  Valid results: {len(df_valid)}/{len(df)} parcels")
 
     print(f"\nOverall statistics (valid results only):")
     print(f"  Mean reliability: {df_valid['r'].mean():.4f}")
