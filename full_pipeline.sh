@@ -15,7 +15,7 @@ DATA_ROOT="${DATA_ROOT:-}"
 
 # Configuration overrides (optional - will use config.sh defaults if not set)
 # Note: Trailing slashes are included to match config.sh
-DTSERIES_ROOT="${DTSERIES_ROOT:-/data/HBN_CIFTI/}"
+DTSERIES_ROOT="${DTSERIES_ROOT:-/data/CIFTI_1/}"
 PTSERIES_ROOT="${PTSERIES_ROOT:-/data/hyperalignment_input/glasser_ptseries/}"
 BASE_OUTDIR="${BASE_OUTDIR:-/data/connectomes}"
 N_JOBS="${N_JOBS:-24}"
