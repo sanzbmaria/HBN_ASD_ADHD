@@ -19,7 +19,7 @@ export DATA_ROOT=/path/to/your/data
 ```bash
 # Run on all subjects (uses local_scripts/run_full_pipeline.sh internally)
 export DATA_ROOT=/path/to/your/data
-./local_scripts/run_full_pipeline.sh
+./local_scripts/full_pipeline.sh
 
 # Or run specific steps:
 ./local_scripts/run_parcellation.sh
