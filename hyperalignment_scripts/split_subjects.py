@@ -1,5 +1,3 @@
-##### the code used to identify train/test percentage without excel #####
-
 #!/usr/bin/env python3
 """
 Flexible train/test splitting without requiring Excel file.
@@ -142,16 +140,22 @@ def main():
         
     else:
         # Random or percentage mode (same implementation)
-        if args.train_pct <= 0 or args.train_pct >= 1:
+        if args.train_pct < 0 or args.train_pct > 1:
             print(f"ERROR: train-pct must be between 0 and 1 (got {args.train_pct})")
             sys.exit(1)
         
-        train_subjects, test_subjects = random_split(
-            all_subjects, args.train_pct, args.seed
-        )
-        
-        print(f"\nRandom split with seed={args.seed}")
-        print(f"Train percentage: {args.train_pct:.1%}")
+        # Special case: train_pct = 1.0 means use ALL subjects for both train and test (overfitting)
+        if args.train_pct == 1.0:
+            print(f"\nOVERFITTING MODE: Using ALL subjects for both training and testing")
+            print(f"This is useful for initial testing but will lead to overfitting!")
+            train_subjects = all_subjects
+            test_subjects = all_subjects
+        else:
+            train_subjects, test_subjects = random_split(
+                all_subjects, args.train_pct, args.seed
+            )
+            print(f"\nRandom split with seed={args.seed}")
+            print(f"Train percentage: {args.train_pct:.1%}")
     
     # Validate subjects exist
     train_subjects = [s for s in train_subjects if s in all_subjects]
