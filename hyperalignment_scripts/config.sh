@@ -47,3 +47,19 @@ SPLIT_COL="split"              # Column with "train" or "test" assignments
 #
 # Do your own stratification/random splitting however you want outside the pipeline,
 # then provide the final assignments in your Excel file.
+
+##### add function (TRAIN_TEST_MODE) to directly tell the percentage of train/test if not having excel #####
+# Train/test split configuration
+# If TRAIN_TEST_MODE is set, it overrides Excel-based splitting
+# Options: "random", "percentage", "explicit"
+TRAIN_TEST_MODE="${TRAIN_TEST_MODE:-}"
+
+# For random mode: specify train percentage (e.g., 0.1 = 10% train, 90% test)
+TRAIN_PERCENTAGE="${TRAIN_PERCENTAGE:-0.4}"
+
+# For explicit mode: comma-separated subject IDs
+EXPLICIT_TRAIN_SUBJECTS="${EXPLICIT_TRAIN_SUBJECTS:-}"
+EXPLICIT_TEST_SUBJECTS="${EXPLICIT_TEST_SUBJECTS:-}"
+
+# Random seed for reproducibility
+RANDOM_SEED="${RANDOM_SEED:-42}"
