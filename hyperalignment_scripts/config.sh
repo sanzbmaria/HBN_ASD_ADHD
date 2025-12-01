@@ -17,7 +17,8 @@ CONNECTOME_MODE="${CONNECTOME_MODE:-both}"
 # Directory paths - these are INSIDE the Docker container
 # The host directory is mounted at /data in the container
 # Can be overridden by environment variables for custom data locations
-DTSERIES_ROOT="${DTSERIES_ROOT:-/data/HBN_CIFTI/}"
+##### change the CIFTI folder name here #####
+DTSERIES_ROOT="${DTSERIES_ROOT:-/data/CIFTI_1/}"
 PTSERIES_ROOT="${PTSERIES_ROOT:-/data/hyperalignment_input/glasser_ptseries/}"
 BASE_OUTDIR="${BASE_OUTDIR:-/data/connectomes}"
 TEMPORARY_OUTDIR="${TEMPORARY_OUTDIR:-work}"
@@ -26,8 +27,10 @@ TEMPORARY_OUTDIR="${TEMPORARY_OUTDIR:-work}"
 PARCELLATION_FILE="atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii"
 
 # File naming patterns
-DTSERIES_FILENAME_TEMPLATE="{subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
-DTSERIES_FILENAME_PATTERN="*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
+##### change the CIFTI file name here #####
+DTSERIES_FILENAME_TEMPLATE="{subj}_bb.rfMRI.MNI.MSMAll.dtseries"
+##### change the CIFTI file name here #####
+DTSERIES_FILENAME_PATTERN="*_bb.rfMRI.MNI.MSMAll.dtseries"
 
 # Subject selection configuration (for organize_subjects.py)
 # Path to metadata Excel file (relative to /data in container or absolute)
