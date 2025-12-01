@@ -129,6 +129,14 @@ N_PARCELS = _get_config_value('N_PARCELS', 360, int)
 # Pipeline mode control
 CONNECTOME_MODE = _get_config_value('CONNECTOME_MODE', 'both')
 
+##### add train/test config #####
+# Train/test split configuration (ADD THESE NEW LINES)
+TRAIN_TEST_MODE = _get_config_value('TRAIN_TEST_MODE', '')
+TRAIN_PERCENTAGE = _get_config_value('TRAIN_PERCENTAGE', 0.4)
+EXPLICIT_TRAIN_SUBJECTS = _get_config_value('EXPLICIT_TRAIN_SUBJECTS', '')
+EXPLICIT_TEST_SUBJECTS = _get_config_value('EXPLICIT_TEST_SUBJECTS', '')
+RANDOM_SEED = _get_config_value('RANDOM_SEED', 42)
+
 # Directory paths - defaults match Docker container paths
 # Environment variables override these when running in Docker
 DTSERIES_ROOT = _get_config_value('DTSERIES_ROOT', '/data/HBN_CIFTI/')
