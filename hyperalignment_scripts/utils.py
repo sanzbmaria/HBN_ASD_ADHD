@@ -111,15 +111,17 @@ def load_metadata_subjects():
         print(f"Warning: Error reading METADATA_EXCEL: {e}, skipping metadata filtering")
         return None
 
+##### change the name of CIFTI files #####
 def _discover_subject_ids():
-    """Find IDs with files like <ID>_task-rest_run-1__s5.dtseries.nii or <ID>_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"""
-    # Use the configurable discovery glob pattern defined at the top of the file
+    """Find IDs with files like <ID>_bb.rfMRI.MNI.MSMAll.dtseries"""
     pattern = os.path.join(DTSERIES_ROOT, DTSERIES_FILENAME_PATTERN)
 
     ids = []
     for fp in glob.glob(pattern):
         name = os.path.basename(fp)
-        sid = name.split("_task-rest")[0]
+        # Extract ID before _bb.rfMRI
+        sid = name.split("_bb.rfMRI")[0]
+        # Don't add "sub-" prefix if not already there
         ids.append(sid)
 
     discovered_ids = sorted(set(ids))
