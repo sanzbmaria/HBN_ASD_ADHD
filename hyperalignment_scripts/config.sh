@@ -28,9 +28,9 @@ PARCELLATION_FILE="atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Fina
 
 # File naming patterns
 ##### change the CIFTI file name here #####
-DTSERIES_FILENAME_TEMPLATE="{subj}_bb.rfMRI.MNI.MSMAll.dtseries"
+DTSERIES_FILENAME_TEMPLATE="{subj}_bb.rfMRI.MNI.MSMAll.dtseries.nii"
 ##### change the CIFTI file name here #####
-DTSERIES_FILENAME_PATTERN="*_bb.rfMRI.MNI.MSMAll.dtseries"
+DTSERIES_FILENAME_PATTERN="*_bb.rfMRI.MNI.MSMAll.dtseries.nii"
 
 # Subject selection configuration (for organize_subjects.py)
 # Path to metadata Excel file (relative to /data in container or absolute)
