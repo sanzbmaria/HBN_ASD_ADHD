@@ -315,12 +315,10 @@ if [ "${RUN_HYPERALIGNMENT}" = "yes" ]; then
     echo "This is the most time-consuming step."
     echo ""
 
+    # FIXED CODE:
     # Determine hyperalignment mode from CONNECTOME_MODE
-    if [ "${CONNECTOME_MODE}" = "split" ] || [ "${CONNECTOME_MODE}" = "both" ]; then
-        HYPERALIGNMENT_MODE="split"
-    else
-        HYPERALIGNMENT_MODE="full"
-    fi
+    # When CONNECTOME_MODE=both, we need to run hyperalignment in 'both' mode too
+    HYPERALIGNMENT_MODE="${CONNECTOME_MODE}"
 
     cd "${HYPERALIGNMENT_DIR}"
     for parcel in {1..360}; do
