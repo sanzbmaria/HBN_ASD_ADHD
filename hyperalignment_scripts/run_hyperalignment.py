@@ -389,17 +389,17 @@ def get_train_test_subjects(csv_path=None):
         print("TEST MODE: Using simple random train/test split")
         test_subjects_list = test_subjects_env.split()
         print("Test subjects from environment: {}".format(len(test_subjects_list)))
-
+    
         random.seed(42)
         test_subjects_copy = list(test_subjects_list)
         random.shuffle(test_subjects_copy)
-
-        # train/test with specified percentage
+    
+        # Read train percentage from environment (default 40% if not set)
         train_pct = float(os.environ.get('TRAIN_PCT', '0.4'))
         n_train = max(1, int(len(test_subjects_copy) * train_pct))
         train_subjects = test_subjects_copy[:n_train]
         test_subjects = test_subjects_copy[n_train:]
-
+        
         print("Random split for test mode:")
         print("  Training: {} subjects".format(len(train_subjects)))
         print("  Test: {} subjects".format(len(test_subjects)))
