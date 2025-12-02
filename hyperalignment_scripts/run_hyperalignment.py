@@ -7,6 +7,7 @@
 
 import os
 import sys
+import re
 
 import tempfile
 TMPDIR = tempfile.gettempdir()  # Uses system temp directory
@@ -396,9 +397,41 @@ def get_train_test_subjects(csv_path=None):
     
         # Read train percentage from environment (default 40% if not set)
         train_pct = float(os.environ.get('TRAIN_PCT', '0.4'))
-        n_train = max(1, int(len(test_subjects_copy) * train_pct))
-        train_subjects = test_subjects_copy[:n_train]
-        test_subjects = test_subjects_copy[n_train:]
+        # FIXED: Handle overfitting mode (TRAIN_PCT=1.0)
+        if train_pct >= 1.0:
+            # Overfitting mode: use ALL subjects for both train and test
+            train_subjects = all_subjects_copy
+            test_subjects = all_subjects_copy
+            print("\n" + "="*70)
+            print("OVERFITTING MODE: TRAIN_PCT={:.1f}".format(train_pct))
+            print("Using ALL {} subjects for BOTH training AND testing".format(len(train_subjects)))
+            print("This is useful for quick validation but will overfit!")
+            print("="*70 + "\n")
+        else:
+            # Normal mode: split into separate train and test sets
+            # FIXED: Handle overfitting mode (TRAIN_PCT=1.0)
+            if train_pct >= 1.0:
+                # Overfitting mode: use ALL subjects for both train and test
+                train_subjects = all_subjects_copy
+                test_subjects = all_subjects_copy
+                print("\n" + "="*70)
+                print("OVERFITTING MODE: TRAIN_PCT={:.1f}".format(train_pct))
+                print("Using ALL {} subjects for BOTH training AND testing".format(len(train_subjects)))
+                print("This is useful for quick validation but will overfit!")
+                print("="*70 + "\n")
+            else:
+                # Normal mode: split into separate train and test sets
+                n_train = int(len(all_subjects_copy) * train_pct)
+                train_subjects = all_subjects_copy[:n_train]
+                test_subjects = all_subjects_copy[n_train:]
+                print("\nRandom split:")
+                print("  Train percentage: {:.1%}".format(train_pct))
+                print("  Training: {} subjects ({:.1%})".format(len(train_subjects), train_pct))
+                print("  Test: {} subjects ({:.1%})".format(len(test_subjects), 1-train_pct))
+            print("\nRandom split:")
+            print("  Train percentage: {:.1%}".format(train_pct))
+            print("  Training: {} subjects ({:.1%})".format(len(train_subjects), train_pct))
+            print("  Test: {} subjects ({:.1%})".format(len(test_subjects), 1-train_pct))
         
         print("Random split for test mode:")
         print("  Training: {} subjects".format(len(train_subjects)))
@@ -605,8 +638,31 @@ if __name__ == '__main__':
         split_str = '_split_0_connectome'
 
     available_files = glob.glob(pattern)
-    available_subjects = [os.path.basename(f).split(split_str)[0]
-                         for f in available_files]
+    
+    # IMPROVED: Extract subject IDs more robustly
+    # Handles both "sub-NDARAA123" and numeric IDs like "3333588"
+    available_subjects = []
+    for f in available_files:
+        basename = os.path.basename(f)
+        # Use regex to extract subject ID
+        # Matches patterns like:
+        #   3333588_split_0_connectome_parcel_007.npy -> 3333588
+        #   sub-NDARAA123_full_connectome_parcel_007.npy -> sub-NDARAA123
+        match = re.match(r'^(.+?)_(split_[0-9]+|full)_connectome_parcel_\d+\.npy$', basename)
+        if match:
+            subj_id = match.group(1)
+            available_subjects.append(subj_id)
+        else:
+            # Fallback to simple split if regex fails
+            subj_id = basename.split(split_str)[0]
+            if subj_id.endswith('_'):
+                subj_id = subj_id[:-1]
+            available_subjects.append(subj_id)
+    
+    print("\nExtracted {} unique subject IDs from files".format(len(set(available_subjects))))
+    print("Sample extracted subject IDs:")
+    for subj in list(set(available_subjects))[:5]:
+        print("  - '{}'".format(subj))
 
     train_subjects = [s for s in train_subjects if s in available_subjects]
     test_subjects = [s for s in test_subjects if s in available_subjects]
