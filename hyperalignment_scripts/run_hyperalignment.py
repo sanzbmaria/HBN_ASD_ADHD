@@ -440,10 +440,7 @@ def get_train_test_subjects(csv_path=None):
 
                     # Format subject IDs
                     def format_id(sid):
-                        sid = str(sid).strip()
-                        if not sid.startswith('sub-'):
-                            sid = 'sub-' + sid
-                        return sid
+                        return str(sid).strip()  # No prefix added
 
                     train_subjects = [format_id(s) for s in train_df[SUBJECT_ID_COL].values]
                     test_subjects = [format_id(s) for s in test_df[SUBJECT_ID_COL].values]
