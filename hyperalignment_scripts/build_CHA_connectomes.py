@@ -1,5 +1,9 @@
-#%%
-#!/usr/bin/python3
+{
+  `id`: `fix_cha_connectomes`,
+  `type`: `application/vnd.ant.code`,
+  `title`: `Fixed build_CHA_connectomes.py`,
+  `command`: `create`,
+  `content`: `#!/usr/bin/python3
 
 # This script is run on the aligned timeseries data produced from run_hyperalignment_simplified.py
 import numpy as np
@@ -11,11 +15,10 @@ from joblib import Parallel, delayed
 import csv
 from datetime import datetime
 
-
 import warnings
 # Suppress nibabel pixdim warnings
-warnings.filterwarnings("ignore", message=".*pixdim.*")
-warnings.filterwarnings("ignore", category=UserWarning, module="nibabel")
+warnings.filterwarnings(\"ignore\", message=\".*pixdim.*\")
+warnings.filterwarnings(\"ignore\", category=UserWarning, module=\"nibabel\")
 
 # Logging setup
 LOGDIR = utils.LOGDIR if hasattr(utils, 'LOGDIR') else os.path.join(utils.BASE_OUTDIR, 'logs')
@@ -23,9 +26,9 @@ LOG_FILE = os.path.join(LOGDIR, 'build_CHA_connectomes_runlog.csv')
 verbose = True  # Set to False to suppress stdout
 
 def append_log(subj_id, mode, parcels_completed, status, message=''):
-    """Append a one-line CSV summary for a subject run.
+    \"\"\"Append a one-line CSV summary for a subject run.
     Fields: timestamp,subject,mode,parcels_completed,status,message
-    """
+    \"\"\"
     try:
         os.makedirs(LOGDIR, exist_ok=True)
         write_header = not os.path.exists(LOG_FILE)
@@ -33,27 +36,21 @@ def append_log(subj_id, mode, parcels_completed, status, message=''):
             writer = csv.writer(fh)
             if write_header:
                 writer.writerow(['timestamp', 'subject', 'mode', 'parcels_completed', 'status', 'message'])
+            # FIXED: Use datetime.utcnow() instead of datetime.now(datetime.timezone.utc)
             writer.writerow([
-                datetime.now(datetime.timezone.utc).isoformat(),
+                datetime.utcnow().isoformat(),
                 subj_id, mode, parcels_completed, status, message
             ])
             fh.flush()
     except Exception as e:
         if verbose:
-            print(f"Failed to write log for {subj_id}: {e}")
-
-import warnings
-# Suppress nibabel pixdim warnings
-warnings.filterwarnings("ignore", message=".*pixdim.*")
-warnings.filterwarnings("ignore", category=UserWarning, module="nibabel")
+            print(f\"Failed to write log for {subj_id}: {e}\")
 
 
-# build connectomes using hyperaligned data for necessary subjects
 def build_cha_full_connectomes(subj_id, aligned_ts_dir, aligned_connectome_dir, n_parcels):
-    """
+    \"\"\"
     Build full connectomes from aligned timeseries data
-    """
-    #print(f'Processing full connectomes for subject {subj_id}')
+    \"\"\"
     
     # load in a whole-brain timeseries
     # get the number of timepoints for this subject
@@ -140,16 +137,12 @@ def build_cha_full_connectomes(subj_id, aligned_ts_dir, aligned_connectome_dir, 
             if verbose:
                 print(msg)
             append_log(subj_id, 'full', parcel, 'error', msg)
-    
-    #print(f'Finished fine and coarse connectomes for subject {subj_id}')
 
-# after running the above, going to make IDMs and then move the data to scratch
-# so then I can do the same with the splits
+
 def build_cha_split_connectomes(subj_id, aligned_ts_dir, aligned_connectome_dir, n_parcels):
-    """
+    \"\"\"
     Build split connectomes from aligned split timeseries data
-    """
-    #print(f'Processing split connectomes for subject {subj_id}')
+    \"\"\"
     
     # load in a whole-brain timeseries for both splits
     for split in [0, 1]:
@@ -218,7 +211,7 @@ def build_cha_split_connectomes(subj_id, aligned_ts_dir, aligned_connectome_dir,
             coarse_dir = os.path.join(aligned_connectome_dir, 'coarse', f'parcel_{parcel:03d}')
             os.makedirs(coarse_dir, exist_ok=True)
             np.save(os.path.join(coarse_dir, f'{subj_id}_split_{split}_connectome_parcel_{parcel:03d}.npy'), cp)
-            #print(f'Saved coarse connectome for subject {subj_id}, parcel {parcel}, split {split}')
+            
         # now correlate the coarse TS with the parcel TS to get a fine connectome
         for ts, parcel in zip(valid_timeseries, valid_parcels):
             # Find index of this parcel in valid_parcels
@@ -231,20 +224,18 @@ def build_cha_split_connectomes(subj_id, aligned_ts_dir, aligned_connectome_dir,
                 fine_dir = os.path.join(aligned_connectome_dir, 'fine', f'parcel_{parcel:03d}')
                 os.makedirs(fine_dir, exist_ok=True)
                 np.save(os.path.join(fine_dir, f'{subj_id}_split_{split}_connectome_parcel_{parcel:03d}.npy'), cnx)
-                #print(f'Saved fine connectome for subject {subj_id}, parcel {parcel}, split {split}') 
             except Exception as e:
                 msg = f'Error computing fine connectome for subject {subj_id}, parcel {parcel}, split {split}: {e}'
                 if verbose:
                     print(msg)
                 append_log(subj_id, f'split{split}', parcel, 'error', msg)
-        
-        #print(f'Finished fine and coarse connectomes for subject {subj_id} split {split}')
 
 
 def get_available_subjects(aligned_ts_dir, n_parcels):
-    """
-    Find subjects that have aligned timeseries data available
-    """
+    \"\"\"
+    Find subjects that have aligned timeseries data available.
+    Only returns subjects that have data for at least one parcel.
+    \"\"\"
     subjects = set()
     
     # Look through all parcel directories to find subjects
@@ -275,7 +266,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if verbose:
-        print(f"Building CHA connectomes (mode: {args.mode})")
+        print(f\"Building CHA connectomes (mode: {args.mode})\")
 
     # Set up directories using utils configuration
     aligned_ts_dir = os.path.join(utils.BASE_OUTDIR, 'hyperalignment_output', 'aligned_timeseries')
@@ -284,22 +275,32 @@ if __name__ == '__main__':
     
     # Check if aligned timeseries directory exists
     if not os.path.exists(aligned_ts_dir):
-        msg = f"Error: Aligned timeseries directory not found: {aligned_ts_dir}"
+        msg = f\"Error: Aligned timeseries directory not found: {aligned_ts_dir}\"
         if verbose:
             print(msg)
-            print("Make sure you've run run_hyperalignment_simplified.py first")
+            print(\"Make sure you've run run_hyperalignment_simplified.py first\")
         append_log('N/A', 'init', 0, 'error', msg)
         sys.exit(1)
     
     # Automatically find all subjects with aligned timeseries data
     subjects2run = get_available_subjects(aligned_ts_dir, n_parcels)
     if verbose:
-        print(f'Found {len(subjects2run)} subjects.')
+        print(f'Found {len(subjects2run)} subjects with aligned timeseries data.')
+        if len(subjects2run) > 0:
+            print(f'Sample subjects: {subjects2run[:5]}')
 
     if len(subjects2run) == 0:
-        msg = "No subjects with aligned timeseries found"
+        msg = \"No subjects with aligned timeseries found\"
         if verbose:
             print(msg)
+            print(f\"\
+Checked directory: {aligned_ts_dir}\")
+            print(\"This usually means hyperalignment hasn't been run yet, or no test subjects were processed.\")
+            print(\"\
+To fix:\")
+            print(\"1. Make sure you've run hyperalignment first\")
+            print(\"2. Check that hyperalignment produced aligned timeseries in:\")
+            print(f\"   {aligned_ts_dir}/parcel_XXX/*_aligned_dtseries.npy\")
         append_log('N/A', 'init', 0, 'error', msg)
         sys.exit(1)
 
@@ -318,13 +319,16 @@ if __name__ == '__main__':
             joblist.append(delayed(build_cha_split_connectomes)(s, aligned_ts_dir, aligned_connectome_dir, n_parcels))
 
     if verbose:
-        print(f"Running {len(joblist)} jobs with {utils.N_JOBS} parallel workers...")
-        print(f"Building CHA connectomes: 0/{len(joblist)} completed")
+        print(f\"Running {len(joblist)} jobs with {utils.N_JOBS} parallel workers...\")
+        print(f\"Building CHA connectomes: 0/{len(joblist)} completed\")
 
     # Run jobs in parallel with joblib's built-in progress
     Parallel(n_jobs=utils.N_JOBS, verbose=10)(joblist)
 
     if verbose:
-        print(f"\nBuilding CHA connectomes: {len(joblist)}/{len(joblist)} completed")
+        print(f\"\
+Building CHA connectomes: {len(joblist)}/{len(joblist)} completed\")
         print('Finished building connectomes!')
-# %%
+`,
+  `language`: `python`
+}
