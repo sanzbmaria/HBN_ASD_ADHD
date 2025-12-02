@@ -102,8 +102,8 @@ def load_metadata_subjects():
             df = pd.read_excel(METADATA_EXCEL)
 
         # Normalize subject IDs to sub-XXXXX format
+        # Get subject IDs as strings
         subjects = df[SUBJECT_ID_COL].astype(str).str.strip()
-        subjects = subjects.apply(lambda x: x if x.startswith("sub-") else f"sub-{x}")
 
         print(f"Loaded {len(subjects)} subjects from metadata file")
         return sorted(set(subjects.tolist()))
