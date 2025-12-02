@@ -26,10 +26,6 @@ def discover_subjects():
         # For "*_bb.rfMRI.MNI.MSMAll.dtseries", extract everything before _bb
         subj_id = filename.split("_bb.rfMRI")[0] if "_bb.rfMRI" in filename else filename.split("_task-rest")[0]
         
-        # Add "sub-" prefix if not present (for consistency)
-        if not subj_id.startswith("sub-"):
-            subj_id = f"sub-{subj_id}"
-        
         subjects.append(subj_id)
     
     return sorted(set(subjects))
@@ -132,9 +128,6 @@ def main():
         train_subjects = [s.strip() for s in args.train_subjects.split(",")]
         test_subjects = [s.strip() for s in args.test_subjects.split(",")]
         
-        # Add "sub-" prefix if needed
-        train_subjects = [s if s.startswith("sub-") else f"sub-{s}" for s in train_subjects]
-        test_subjects = [s if s.startswith("sub-") else f"sub-{s}" for s in test_subjects]
         
         print(f"\nUsing explicit subject lists")
         
