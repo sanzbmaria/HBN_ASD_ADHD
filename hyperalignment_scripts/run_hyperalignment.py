@@ -358,29 +358,8 @@ def discover_subject_ids():
 
 
 def format_subject_id(subject_id_raw):
-    """
-    Format subject ID from CSV to filesystem format.
-
-    Converts: "NDARAA123ABC,assessment" -> "sub-NDARAA123ABC"
-
-    Parameters
-    ----------
-    subject_id_raw : str
-        Raw subject ID from CSV (may contain ',assessment')
-
-    Returns
-    -------
-    str
-        Formatted subject ID with 'sub-' prefix and ',assessment' removed
-    """
-    # Remove ',assessment' if present
     subject_id = str(subject_id_raw).split(',')[0].strip()
-
-    # Add 'sub-' prefix if not already there
-    if not subject_id.startswith('sub-'):
-        subject_id = 'sub-{}'.format(subject_id)
-
-    return subject_id
+    return subject_id  # No prefix added
 
 
 def get_train_test_subjects(csv_path=None):
