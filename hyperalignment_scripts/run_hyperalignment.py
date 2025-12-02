@@ -461,14 +461,18 @@ def get_train_test_subjects(csv_path=None):
         # Use utils._discover_subject_ids() which respects metadata filtering
         all_subjects = utils._discover_subject_ids()
         print("Found {} total subjects".format(len(all_subjects)))
-
+        
         random.seed(42)
         all_subjects_copy = list(all_subjects)
         random.shuffle(all_subjects_copy)
-
-        n_train = int(len(all_subjects_copy) * 0.4)
+        
+        # Read train percentage from environment
+        train_pct = float(os.environ.get('TRAIN_PCT', '0.4'))
+        n_train = int(len(all_subjects_copy) * train_pct)
         train_subjects = all_subjects_copy[:n_train]
         test_subjects = all_subjects_copy[n_train:]
+        
+        print("Train percentage: {:.1%}".format(train_pct))
 
         print("Random split: {} training, {} test".format(
             len(train_subjects), len(test_subjects)))
