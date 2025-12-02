@@ -68,9 +68,6 @@ def main():
 
     # Normalize subject IDs to sub-XXXXX format
     df["subject_id"] = df[args.subject_col].astype(str).str.strip()
-    df["subject_id"] = df["subject_id"].apply(
-        lambda x: x if x.startswith("sub-") else f"sub-{x}"
-    )
 
     # Normalize split column values
     df["split"] = df[args.split_col].astype(str).str.strip().str.lower()
