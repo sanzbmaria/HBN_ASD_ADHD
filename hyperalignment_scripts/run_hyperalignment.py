@@ -397,11 +397,12 @@ def get_train_test_subjects(csv_path=None):
     
         # Read train percentage from environment (default 40% if not set)
         train_pct = float(os.environ.get('TRAIN_PCT', '0.4'))
+        
         # FIXED: Handle overfitting mode (TRAIN_PCT=1.0)
         if train_pct >= 1.0:
             # Overfitting mode: use ALL subjects for both train and test
-            train_subjects = all_subjects_copy
-            test_subjects = all_subjects_copy
+            train_subjects = test_subjects_copy
+            test_subjects = test_subjects_copy
             print("\n" + "="*70)
             print("OVERFITTING MODE: TRAIN_PCT={:.1f}".format(train_pct))
             print("Using ALL {} subjects for BOTH training AND testing".format(len(train_subjects)))
@@ -409,35 +410,15 @@ def get_train_test_subjects(csv_path=None):
             print("="*70 + "\n")
         else:
             # Normal mode: split into separate train and test sets
-            # FIXED: Handle overfitting mode (TRAIN_PCT=1.0)
-            if train_pct >= 1.0:
-                # Overfitting mode: use ALL subjects for both train and test
-                train_subjects = all_subjects_copy
-                test_subjects = all_subjects_copy
-                print("\n" + "="*70)
-                print("OVERFITTING MODE: TRAIN_PCT={:.1f}".format(train_pct))
-                print("Using ALL {} subjects for BOTH training AND testing".format(len(train_subjects)))
-                print("This is useful for quick validation but will overfit!")
-                print("="*70 + "\n")
-            else:
-                # Normal mode: split into separate train and test sets
-                n_train = int(len(all_subjects_copy) * train_pct)
-                train_subjects = all_subjects_copy[:n_train]
-                test_subjects = all_subjects_copy[n_train:]
-                print("\nRandom split:")
-                print("  Train percentage: {:.1%}".format(train_pct))
-                print("  Training: {} subjects ({:.1%})".format(len(train_subjects), train_pct))
-                print("  Test: {} subjects ({:.1%})".format(len(test_subjects), 1-train_pct))
-            print("\nRandom split:")
-            print("  Train percentage: {:.1%}".format(train_pct))
+            n_train = max(1, int(len(test_subjects_copy) * train_pct))
+            train_subjects = test_subjects_copy[:n_train]
+            test_subjects = test_subjects_copy[n_train:]
+            print("\nRandom split for test mode:")
             print("  Training: {} subjects ({:.1%})".format(len(train_subjects), train_pct))
             print("  Test: {} subjects ({:.1%})".format(len(test_subjects), 1-train_pct))
-        
-        print("Random split for test mode:")
-        print("  Training: {} subjects".format(len(train_subjects)))
-        print("  Test: {} subjects".format(len(test_subjects)))
-        print("  Train subjects: {}".format(train_subjects))
-        print("  Test subjects: {}".format(test_subjects))
+
+        print("  Train subjects: {}".format(train_subjects[:5] + (['...'] if len(train_subjects) > 5 else [])))
+        print("  Test subjects: {}".format(test_subjects[:5] + (['...'] if len(test_subjects) > 5 else [])))
 
         return train_subjects, test_subjects
 
@@ -501,14 +482,26 @@ def get_train_test_subjects(csv_path=None):
         
         # Read train percentage from environment
         train_pct = float(os.environ.get('TRAIN_PCT', '0.4'))
-        n_train = int(len(all_subjects_copy) * train_pct)
-        train_subjects = all_subjects_copy[:n_train]
-        test_subjects = all_subjects_copy[n_train:]
         
-        print("Train percentage: {:.1%}".format(train_pct))
-
-        print("Random split: {} training, {} test".format(
-            len(train_subjects), len(test_subjects)))
+        # FIXED: Handle overfitting mode (TRAIN_PCT=1.0)
+        if train_pct >= 1.0:
+            # Overfitting mode: use ALL subjects for both train and test
+            train_subjects = all_subjects_copy
+            test_subjects = all_subjects_copy
+            print("\n" + "="*70)
+            print("OVERFITTING MODE: TRAIN_PCT={:.1f}".format(train_pct))
+            print("Using ALL {} subjects for BOTH training AND testing".format(len(train_subjects)))
+            print("This is useful for quick validation but will overfit!")
+            print("="*70 + "\n")
+        else:
+            # Normal mode: split into separate train and test sets
+            n_train = int(len(all_subjects_copy) * train_pct)
+            train_subjects = all_subjects_copy[:n_train]
+            test_subjects = all_subjects_copy[n_train:]
+            print("\nRandom split:")
+            print("  Train percentage: {:.1%}".format(train_pct))
+            print("  Training: {} subjects ({:.1%})".format(len(train_subjects), train_pct))
+            print("  Test: {} subjects ({:.1%})".format(len(test_subjects), 1-train_pct))
 
         return train_subjects, test_subjects
 
