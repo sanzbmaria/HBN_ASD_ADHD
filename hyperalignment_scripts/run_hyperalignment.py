@@ -651,12 +651,12 @@ if __name__ == '__main__':
     
     # Run hyperalignment based on mode
     if mode == 'full' or mode == 'both':
-        drive_hyperalignment_full(train_subjects, test_subjects,
+        drive_hyperalignment_full(available_subjects, available_subjects,
                                  train_connectome_dir, mapper_dir,
                                  aligned_dir, parcel)
 
     if mode == 'split' or mode == 'both':
-        drive_hyperalignment_split(train_subjects, test_subjects,
+        drive_hyperalignment_split(available_subjects, available_subjects,
                                   train_connectome_dir, mapper_dir,
                                   aligned_dir, parcel)
 

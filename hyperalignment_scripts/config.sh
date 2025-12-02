@@ -26,6 +26,9 @@ TEMPORARY_OUTDIR="${TEMPORARY_OUTDIR:-work}"
 PARCELLATION_FILE="atlas/Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii"
 
 # File naming patterns
+# DTSERIES_FILENAME_TEMPLATE="{subj}_task-rest_run-1_Atlas_s2.dtseries.nii"
+# DTSERIES_FILENAME_PATTERN="*_task-rest_run-1_Atlas_s2.dtseries.nii"
+
 DTSERIES_FILENAME_TEMPLATE="{subj}_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
 DTSERIES_FILENAME_PATTERN="*_task-rest_run-1_nogsr_Atlas_s5.dtseries.nii"
 
