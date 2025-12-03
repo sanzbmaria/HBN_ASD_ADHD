@@ -43,34 +43,52 @@ def mantel_test_fallback(vec1, vec2, method='pearson', permutations=1000):
     return observed_r, p_value, z_score
 
 def get_valid_ISC_subjects(mat1, mat2=None, include_these=None):
+    """
+    Get valid subjects from ISC matrices, handling both string and integer subject IDs.
+    """
     valid1 = np.argwhere(np.sum(np.isnan(mat1.values), axis=0) < 10)
     if mat2 is not None:
         valid2 = np.argwhere(np.sum(np.isnan(mat2.values), axis=0) < 10)
     else:
-        valid2=valid1
+        valid2 = valid1
     valid_inds = list(np.intersect1d(valid1, valid2))
     valid_subjects = mat1.index[valid_inds]
+    
+    # Convert to strings for consistent handling
+    valid_subjects = [str(s) for s in valid_subjects]
+    
     if include_these is not None:
-        valid_subjects = [v for v in valid_subjects if v in include_these]
+        # Convert include_these to strings as well
+        include_these_str = [str(s) for s in include_these]
+        valid_subjects = [v for v in valid_subjects if v in include_these_str]
+    
     return valid_subjects
 
 def run_reliability(fn0, fn1):
     try:
+        # Read CSVs with first column as index
         mat0 = pd.read_csv(fn0, index_col=0)
         mat1 = pd.read_csv(fn1, index_col=0)
+        
+        # Convert index and columns to strings to ensure consistency
+        mat0.index = mat0.index.astype(str)
+        mat0.columns = mat0.columns.astype(str)
+        mat1.index = mat1.index.astype(str)
+        mat1.columns = mat1.columns.astype(str)
+        
         valid_subs = get_valid_ISC_subjects(mat0, mat1)
 
         if len(valid_subs) < 2:
             return np.nan, np.nan, np.nan
 
-        triu = np.triu_indices(len(valid_subs),1)
+        triu = np.triu_indices(len(valid_subs), 1)
         vec0 = mat0.loc[valid_subs][valid_subs].values[triu]
         vec1 = mat1.loc[valid_subs][valid_subs].values[triu]
 
         if HAS_MANTEL:
-            r,p,z = mantel.test(vec0, vec1, method='pearson')
+            r, p, z = mantel.test(vec0, vec1, method='pearson')
         else:
-            r,p,z = mantel_test_fallback(vec0, vec1, method='pearson')
+            r, p, z = mantel_test_fallback(vec0, vec1, method='pearson')
         return r, p, z
     except Exception as e:
         print(f"Error processing {fn0}, {fn1}: {e}")
@@ -83,7 +101,7 @@ if __name__ == '__main__':
     os.makedirs(results_dir, exist_ok=True)
 
     n_jobs = utils.N_JOBS
-    df = pd.DataFrame(columns=['align','scale','parcel','r', 'p', 'z'])
+    df = pd.DataFrame(columns=['align', 'scale', 'parcel', 'r', 'p', 'z'])
     align_vals, scale_vals, parcel_vals = [], [], []
     joblist = []
 
@@ -91,9 +109,9 @@ if __name__ == '__main__':
 
     # Build job list for ALL parcels (matching Erica's original)
     # This ensures parcel numbers are always present, even if files are missing (will be NaN)
-    for a in ['aa','cha']:
-        for s in ['coarse','fine']:
-            for p in range(1,361):
+    for a in ['aa', 'cha']:
+        for s in ['coarse', 'fine']:
+            for p in range(1, 361):
                 fn0 = f'{similarity_dir}/{a}_{s}_split0_parcel_{p:03d}_ISC.csv'
                 fn1 = f'{similarity_dir}/{a}_{s}_split1_parcel_{p:03d}_ISC.csv'
 
@@ -116,12 +134,12 @@ if __name__ == '__main__':
     with Parallel(n_jobs=n_jobs, verbose=10) as parallel:
         results = np.array(parallel(joblist))
 
-    df = pd.DataFrame({'align':align_vals,
-                      'scale':scale_vals,
-                      'parcel':parcel_vals,
-                      'r':results[:,0],
-                      'p':results[:,1],
-                      'z':results[:,2]})
+    df = pd.DataFrame({'align': align_vals,
+                      'scale': scale_vals,
+                      'parcel': parcel_vals,
+                      'r': results[:, 0],
+                      'p': results[:, 1],
+                      'z': results[:, 2]})
 
     # Save ALL results including NaN (matching Erica's original)
     output_file = os.path.join(results_dir, 'reliability_results.csv')
