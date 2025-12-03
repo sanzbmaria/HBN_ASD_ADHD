@@ -10,7 +10,12 @@ def load_full_connectomes(parcel, connectome_dir, subjects):
     connectome_list = []
     for s in subjects:
         fn = f'{connectome_dir}/{s}_full_connectome_parcel_{parcel:03d}.npy'
-        connectome_list.append(np.load(fn).ravel())
+        if os.path.exists(fn):  # Add existence check
+            connectome_list.append(np.load(fn).ravel())
+        else:
+            print(f"Warning: Missing connectome for subject {s}: {fn}")
+    if len(connectome_list) == 0:
+        raise FileNotFoundError(f"No connectomes found for parcel {parcel} in {connectome_dir}")
     print(f"parcel {parcel} stacked shape {np.shape(connectome_list)}")
     return np.stack(connectome_list)
 
@@ -18,7 +23,12 @@ def load_split_connectomes(parcel, connectome_dir, subjects, split):
     connectome_list = []
     for s in subjects:
         fn = f'{connectome_dir}/{s}_split_{split}_connectome_parcel_{parcel:03d}.npy'
-        connectome_list.append(np.load(fn).ravel())
+        if os.path.exists(fn):  # Add existence check
+            connectome_list.append(np.load(fn).ravel())
+        else:
+            print(f"Warning: Missing split connectome for subject {s}, split {split}: {fn}")
+    if len(connectome_list) == 0:
+        raise FileNotFoundError(f"No split {split} connectomes found for parcel {parcel} in {connectome_dir}")
     print(f"parcel {parcel} split {split} stacked shape {np.shape(connectome_list)}")
     return np.stack(connectome_list)
 
@@ -52,6 +62,31 @@ def IS_covariance(scale, alignment, parcel, connectome_dir, outdir, subjects, sp
     print(f'finished {outfn}')
 
 
+def get_subjects_with_connectomes(aa_dir, cha_dir, parcel=1):
+    """
+    Get subjects that have both AA and CHA connectomes.
+    This ensures we only include subjects that were test subjects in hyperalignment.
+    """
+    # Check AA connectomes
+    aa_fine = os.path.join(aa_dir, 'fine', f'parcel_{parcel:03d}')
+    aa_subjects = set()
+    if os.path.exists(aa_fine):
+        for f in glob.glob(os.path.join(aa_fine, '*_full_connectome_parcel_*.npy')):
+            subj = os.path.basename(f).split('_full_connectome')[0]
+            aa_subjects.add(subj)
+    
+    # Check CHA connectomes
+    cha_fine = os.path.join(cha_dir, 'fine', f'parcel_{parcel:03d}')
+    cha_subjects = set()
+    if os.path.exists(cha_fine):
+        for f in glob.glob(os.path.join(cha_fine, '*_full_connectome_parcel_*.npy')):
+            subj = os.path.basename(f).split('_full_connectome')[0]
+            cha_subjects.add(subj)
+    
+    # Return intersection (subjects with both AA and CHA)
+    common_subjects = sorted(list(aa_subjects & cha_subjects))
+    return common_subjects
+
 
 if __name__ == "__main__":
     parcel = int(sys.argv[1])
@@ -60,16 +95,26 @@ if __name__ == "__main__":
     # Get connectome mode from environment
     connectome_mode = os.environ.get('CONNECTOME_MODE', 'both')
 
-    twin_subjects = utils.load_twin_subjects()
-    reliability_subjects = utils.get_reliability_subjects()
-    all_subjects = list(set(twin_subjects + reliability_subjects))
-
     outdir = os.path.join(utils.BASE_OUTDIR, 'similarity_matrices')
     aa_dir = utils.BASE_OUTDIR  # AA connectomes directory
     cha_dir = os.path.join(utils.BASE_OUTDIR, 'hyperalignment_output', 'connectomes')  # CHA connectomes
 
     # Create output directory
     os.makedirs(outdir, exist_ok=True)
+
+    # Get subjects that have BOTH AA and CHA connectomes (test subjects only)
+    all_subjects = get_subjects_with_connectomes(aa_dir, cha_dir, parcel=1)
+    reliability_subjects = all_subjects  # Use all available subjects for reliability
+
+    print(f"Found {len(all_subjects)} subjects with both AA and CHA connectomes")
+    print(f"Sample subjects: {all_subjects[:5] if len(all_subjects) > 5 else all_subjects}")
+
+    if len(all_subjects) == 0:
+        print("\nERROR: No subjects found with both AA and CHA connectomes!")
+        print("This usually means:")
+        print("1. Hyperalignment created CHA connectomes only for test subjects")
+        print("2. You need to ensure the same subjects are in both AA and CHA directories")
+        sys.exit(1)
 
     if mode == 'single':
         # Run for single parcel (original behavior)
@@ -78,8 +123,7 @@ if __name__ == "__main__":
             for scale in ['coarse','fine']:
                 dn = os.path.join(conndir, scale, f'parcel_{parcel:03d}')
                 # Only compute full connectome matrices if mode includes full
-                # AA always has full (because we auto-build both), CHA only has full if mode is 'full' or 'both'
-                if connectome_mode in ['full', 'both'] or alignment == 'aa':
+                if connectome_mode in ['full', 'both']:
                     joblist.append(delayed(ISC)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
                     joblist.append(delayed(IS_covariance)(scale, alignment, parcel, dn, outdir, all_subjects, split=None))
                 # Only compute split matrices if mode includes split
@@ -111,8 +155,7 @@ if __name__ == "__main__":
                         print(f"Warning: Directory not found: {dn}")
                         continue
                     # Only compute full connectome matrices if mode includes full
-                    # AA always has full (because we auto-build both), CHA only has full if mode is 'full' or 'both'
-                    if connectome_mode in ['full', 'both'] or alignment == 'aa':
+                    if connectome_mode in ['full', 'both']:
                         joblist.append(delayed(ISC)(scale, alignment, p, dn, outdir, all_subjects, split=None))
                         joblist.append(delayed(IS_covariance)(scale, alignment, p, dn, outdir, all_subjects, split=None))
                     # Only compute split matrices if mode includes split
